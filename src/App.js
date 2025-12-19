@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Heart, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Search, Home, Music } from 'lucide-react';
+import { Heart, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Search, Home, Music, User, LogOut } from 'lucide-react';
 import './App.css';
 
 const SoundStorm = () => {
@@ -16,6 +16,11 @@ const SoundStorm = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [popularTracks, setPopularTracks] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [loginData, setLoginData] = useState({ username: '', password: '' });
+  const [registerData, setRegisterData] = useState({ username: '', email: '', password: '' });
+  const [errors, setErrors] = useState({});
   const audioRef = useRef(null);
 
   useEffect(() => {
@@ -30,11 +35,20 @@ const SoundStorm = () => {
     }
   }, [volume, isMuted]);
 
+  useEffect(() => {
+    let interval;
+    if (isPlaying && audioRef.current) {
+      interval = setInterval(() => {
+        setCurrentTime(audioRef.current.currentTime);
+      }, 100);
+    }
+    return () => clearInterval(interval);
+  }, [isPlaying]);
+
   const fetchPopularTracks = async () => {
     try {
       const response = await fetch(`https://itunes.apple.com/search?term=top+songs+2024&limit=25&media=music&entity=song`);
       const data = await response.json();
-      console.log('Fetched tracks:', data);
       if (data.results) {
         const tracks = data.results.map((track) => ({
           id: track.trackId,
@@ -61,7 +75,6 @@ const SoundStorm = () => {
     try {
       const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&limit=25&media=music&entity=song`);
       const data = await response.json();
-      console.log('Search results:', data);
       if (data.results) {
         const tracks = data.results.map((track) => ({
           id: track.trackId,
@@ -80,6 +93,107 @@ const SoundStorm = () => {
       }
     } catch (error) {
       console.error('Error searching:', error);
+    }
+  };
+
+  const validateUsername = (username) => {
+    if (username.length < 3) {
+      return 'Username must be at least 3 characters';
+    }
+    if (!/[A-Z]/.test(username)) {
+      return 'Username must contain at least one uppercase letter';
+    }
+    return null;
+  };
+
+  const validatePassword = (password) => {
+    if (password.length < 5) {
+      return 'Password must be at least 5 characters';
+    }
+    if (!/[A-Z]/.test(password)) {
+      return 'Password must contain at least one uppercase letter';
+    }
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
+      return 'Password must contain at least one special character (!@#$%^&*...)';
+    }
+    return null;
+  };
+
+  const handleLogin = () => {
+    const newErrors = {};
+    
+    if (!loginData.username) {
+      newErrors.username = 'Username is required';
+    }
+    if (!loginData.password) {
+      newErrors.password = 'Password is required';
+    }
+
+    const user = users.find(u => u.username === loginData.username && u.password === loginData.password);
+    
+    if (!user) {
+      newErrors.general = 'User not found. Please register first.';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setCurrentUser(user);
+    setIsLoggedIn(true);
+    setErrors({});
+  };
+
+  const handleRegister = () => {
+    const newErrors = {};
+    
+    const usernameError = validateUsername(registerData.username);
+    if (usernameError) {
+      newErrors.username = usernameError;
+    }
+
+    if (!registerData.email || !registerData.email.includes('@')) {
+      newErrors.email = 'Valid email is required';
+    }
+
+    const passwordError = validatePassword(registerData.password);
+    if (passwordError) {
+      newErrors.password = passwordError;
+    }
+
+    const userExists = users.find(u => u.username === registerData.username);
+    if (userExists) {
+      newErrors.username = 'Username already exists';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    const newUser = {
+      id: Date.now(),
+      username: registerData.username,
+      email: registerData.email,
+      password: registerData.password,
+      registeredAt: new Date().toISOString()
+    };
+
+    setUsers([...users, newUser]);
+    setCurrentUser(newUser);
+    setIsLoggedIn(true);
+    setErrors({});
+  };
+
+  const handleLogout = () => {
+    setIsLoggedIn(false);
+    setCurrentUser(null);
+    setCurrentView('home');
+    setCurrentTrack(null);
+    setIsPlaying(false);
+    if (audioRef.current) {
+      audioRef.current.pause();
     }
   };
 
@@ -104,24 +218,54 @@ const SoundStorm = () => {
   };
 
   const playTrack = (track) => {
-    if (currentTrack?.id === track.id && isPlaying) {
-      setIsPlaying(false);
-      audioRef.current?.pause();
-    } else {
-      setCurrentTrack(track);
-      setIsPlaying(true);
-      if (audioRef.current) {
-        audioRef.current.src = track.preview;
-        audioRef.current.play();
+    console.log('Playing track:', track.title);
+    
+    // Если кликнули на ту же песню - просто пауза/плей
+    if (currentTrack?.id === track.id) {
+      if (isPlaying) {
+        console.log('Pausing current track');
+        setIsPlaying(false);
+        audioRef.current?.pause();
+      } else {
+        console.log('Resuming current track');
+        setIsPlaying(true);
+        audioRef.current?.play().catch(err => console.error('Play error:', err));
       }
+      return;
     }
+    
+    // Новая песня - останавливаем старую и запускаем новую
+    console.log('Switching to new track');
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    
+    setCurrentTime(0);
+    setCurrentTrack(track);
+    
+    setTimeout(() => {
+      if (audioRef.current && track.preview) {
+        audioRef.current.src = track.preview;
+        audioRef.current.load();
+        audioRef.current.play()
+          .then(() => {
+            console.log('Started playing:', track.title);
+            setIsPlaying(true);
+          })
+          .catch(err => {
+            console.error('Play error:', err);
+            setIsPlaying(false);
+          });
+      }
+    }, 100);
   };
 
   const togglePlayPause = () => {
     if (isPlaying) {
       audioRef.current?.pause();
     } else {
-      audioRef.current?.play();
+      audioRef.current?.play().catch(err => console.error('Play error:', err));
     }
     setIsPlaying(!isPlaying);
   };
@@ -145,19 +289,34 @@ const SoundStorm = () => {
           {!showRegister ? (
             <div className="auth-form">
               <h2>Log in to SoundStorm</h2>
+              {errors.general && <div className="error-message">{errors.general}</div>}
               <div className="form-group">
-                <label>Email or username</label>
-                <input type="text" placeholder="Email or username" />
+                <label>Username</label>
+                <input 
+                  type="text" 
+                  placeholder="Username" 
+                  value={loginData.username}
+                  onChange={(e) => setLoginData({...loginData, username: e.target.value})}
+                  className={errors.username ? 'error' : ''}
+                />
+                {errors.username && <span className="error-text">{errors.username}</span>}
               </div>
               <div className="form-group">
                 <label>Password</label>
-                <input type="password" placeholder="Password" />
+                <input 
+                  type="password" 
+                  placeholder="Password" 
+                  value={loginData.password}
+                  onChange={(e) => setLoginData({...loginData, password: e.target.value})}
+                  className={errors.password ? 'error' : ''}
+                />
+                {errors.password && <span className="error-text">{errors.password}</span>}
               </div>
-              <button onClick={() => setIsLoggedIn(true)} className="btn-primary">
+              <button onClick={handleLogin} className="btn-primary">
                 Log In
               </button>
               <div className="auth-switch">
-                <button onClick={() => setShowRegister(true)}>
+                <button onClick={() => { setShowRegister(true); setErrors({}); }}>
                   Don't have an account? Sign up
                 </button>
               </div>
@@ -166,22 +325,43 @@ const SoundStorm = () => {
             <div className="auth-form">
               <h2>Sign up for free</h2>
               <div className="form-group">
-                <label>Email</label>
-                <input type="email" placeholder="name@domain.com" />
+                <label>Username</label>
+                <input 
+                  type="text" 
+                  placeholder="Username (min 3 chars, 1 uppercase)" 
+                  value={registerData.username}
+                  onChange={(e) => setRegisterData({...registerData, username: e.target.value})}
+                  className={errors.username ? 'error' : ''}
+                />
+                {errors.username && <span className="error-text">{errors.username}</span>}
               </div>
               <div className="form-group">
-                <label>Username</label>
-                <input type="text" placeholder="Username" />
+                <label>Email</label>
+                <input 
+                  type="email" 
+                  placeholder="name@domain.com" 
+                  value={registerData.email}
+                  onChange={(e) => setRegisterData({...registerData, email: e.target.value})}
+                  className={errors.email ? 'error' : ''}
+                />
+                {errors.email && <span className="error-text">{errors.email}</span>}
               </div>
               <div className="form-group">
                 <label>Password</label>
-                <input type="password" placeholder="Password" />
+                <input 
+                  type="password" 
+                  placeholder="Password (min 5 chars, 1 uppercase, 1 special)" 
+                  value={registerData.password}
+                  onChange={(e) => setRegisterData({...registerData, password: e.target.value})}
+                  className={errors.password ? 'error' : ''}
+                />
+                {errors.password && <span className="error-text">{errors.password}</span>}
               </div>
-              <button onClick={() => setIsLoggedIn(true)} className="btn-primary">
+              <button onClick={handleRegister} className="btn-primary">
                 Sign Up
               </button>
               <div className="auth-switch">
-                <button onClick={() => setShowRegister(false)}>
+                <button onClick={() => { setShowRegister(false); setErrors({}); }}>
                   Already have an account? Log in
                 </button>
               </div>
@@ -252,7 +432,21 @@ const SoundStorm = () => {
               <Heart size={24} />
               <span>Favorites</span>
             </button>
+            <button
+              onClick={() => setCurrentView('profile')}
+              className={currentView === 'profile' ? 'active' : ''}
+            >
+              <User size={24} />
+              <span>Profile</span>
+            </button>
           </nav>
+
+          <div className="sidebar-footer">
+            <button onClick={handleLogout} className="logout-btn">
+              <LogOut size={20} />
+              <span>Log out</span>
+            </button>
+          </div>
         </div>
 
         <div className="content">
@@ -309,6 +503,35 @@ const SoundStorm = () => {
                 )}
               </div>
             )}
+
+            {currentView === 'profile' && currentUser && (
+              <div>
+                <h2>Profile</h2>
+                <div className="profile-card">
+                  <div className="profile-avatar">
+                    <User size={80} />
+                  </div>
+                  <div className="profile-info">
+                    <div className="profile-item">
+                      <label>Username:</label>
+                      <span>{currentUser.username}</span>
+                    </div>
+                    <div className="profile-item">
+                      <label>Email:</label>
+                      <span>{currentUser.email}</span>
+                    </div>
+                    <div className="profile-item">
+                      <label>Member since:</label>
+                      <span>{new Date(currentUser.registeredAt).toLocaleDateString()}</span>
+                    </div>
+                    <div className="profile-item">
+                      <label>Favorite tracks:</label>
+                      <span>{favorites.length}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -320,6 +543,8 @@ const SoundStorm = () => {
             onTimeUpdate={(e) => setCurrentTime(e.target.currentTime)}
             onLoadedMetadata={(e) => setDuration(e.target.duration)}
             onEnded={() => setIsPlaying(false)}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
           />
 
           <div className="player-track-info">
