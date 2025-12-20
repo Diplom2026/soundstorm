@@ -10,6 +10,8 @@ const SoundStorm = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [currentTrack, setCurrentTrack] = useState(null);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(-1);
+  const [currentPlaylist, setCurrentPlaylist] = useState([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.7);
   const [isMuted, setIsMuted] = useState(false);
@@ -217,48 +219,76 @@ const SoundStorm = () => {
     return favorites.some(t => t.id === trackId);
   };
 
-  const playTrack = (track) => {
-    console.log('Playing track:', track.title);
-    
+  const playTrack = async (track, playlist = null) => {
     // Если кликнули на ту же песню - просто пауза/плей
     if (currentTrack?.id === track.id) {
       if (isPlaying) {
-        console.log('Pausing current track');
         setIsPlaying(false);
-        audioRef.current?.pause();
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
       } else {
-        console.log('Resuming current track');
         setIsPlaying(true);
-        audioRef.current?.play().catch(err => console.error('Play error:', err));
+        if (audioRef.current) {
+          try {
+            await audioRef.current.play();
+          } catch (err) {
+            console.error('Play error:', err);
+            setIsPlaying(false);
+          }
+        }
       }
       return;
     }
     
-    // Новая песня - останавливаем старую и запускаем новую
-    console.log('Switching to new track');
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
+    // Устанавливаем плейлист если передан
+    if (playlist) {
+      setCurrentPlaylist(playlist);
+      const index = playlist.findIndex(t => t.id === track.id);
+      setCurrentTrackIndex(index);
     }
     
+    // Новая песня - полностью останавливаем старую
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      audioRef.current.load();
+    }
+    
+    setIsPlaying(false);
     setCurrentTime(0);
     setCurrentTrack(track);
     
-    setTimeout(() => {
+    // Небольшая задержка для очистки предыдущего аудио
+    setTimeout(async () => {
       if (audioRef.current && track.preview) {
-        audioRef.current.src = track.preview;
-        audioRef.current.load();
-        audioRef.current.play()
-          .then(() => {
-            console.log('Started playing:', track.title);
-            setIsPlaying(true);
-          })
-          .catch(err => {
-            console.error('Play error:', err);
-            setIsPlaying(false);
-          });
+        try {
+          audioRef.current.src = track.preview;
+          audioRef.current.load();
+          await audioRef.current.play();
+          setIsPlaying(true);
+        } catch (err) {
+          console.error('Play error:', err);
+          setIsPlaying(false);
+        }
       }
-    }, 100);
+    }, 50);
+  };
+
+  const playNextTrack = () => {
+    if (currentPlaylist.length === 0) return;
+    const nextIndex = (currentTrackIndex + 1) % currentPlaylist.length;
+    const nextTrack = currentPlaylist[nextIndex];
+    setCurrentTrackIndex(nextIndex);
+    playTrack(nextTrack);
+  };
+
+  const playPreviousTrack = () => {
+    if (currentPlaylist.length === 0) return;
+    const prevIndex = currentTrackIndex - 1 < 0 ? currentPlaylist.length - 1 : currentTrackIndex - 1;
+    const prevTrack = currentPlaylist[prevIndex];
+    setCurrentTrackIndex(prevIndex);
+    playTrack(prevTrack);
   };
 
   const togglePlayPause = () => {
@@ -372,41 +402,46 @@ const SoundStorm = () => {
     );
   }
 
-  const TrackRow = ({ track, index }) => (
-    <div className="track-row">
-      <div className="track-number">
-        {currentTrack?.id === track.id && isPlaying ? (
-          <div className="playing-indicator"></div>
-        ) : (
-          <span className="number">{index + 1}</span>
-        )}
-        <button onClick={() => playTrack(track)} className="play-btn-small">
-          {currentTrack?.id === track.id && isPlaying ? (
-            <Pause size={16} />
+  const TrackRow = ({ track, index, playlist }) => {
+    const isCurrentTrack = currentTrack?.id === track.id;
+    const isCurrentlyPlaying = isCurrentTrack && isPlaying;
+    
+    return (
+      <div className="track-row">
+        <div className="track-number">
+          {isCurrentlyPlaying ? (
+            <div className="playing-indicator"></div>
           ) : (
-            <Play size={16} />
+            <span className="number">{index + 1}</span>
           )}
-        </button>
-      </div>
-      <div className="track-info">
-        <img src={track.album?.cover_small || track.cover_small} alt={track.title} />
-        <div className="track-details">
-          <div className="track-title">{track.title}</div>
-          <div className="track-artist">{track.artist?.name}</div>
+          <button onClick={() => playTrack(track, playlist)} className="play-btn-small">
+            {isCurrentlyPlaying ? (
+              <Pause size={16} />
+            ) : (
+              <Play size={16} />
+            )}
+          </button>
+        </div>
+        <div className="track-info">
+          <img src={track.album?.cover_small || track.cover_small} alt={track.title} />
+          <div className="track-details">
+            <div className="track-title">{track.title}</div>
+            <div className="track-artist">{track.artist?.name}</div>
+          </div>
+        </div>
+        <div className="track-album">{track.album?.title || 'Single'}</div>
+        <div className="track-duration">{formatTime(track.duration)}</div>
+        <div className="track-actions">
+          <button
+            onClick={() => toggleFavorite(track)}
+            className={`favorite-btn ${isFavorite(track.id) ? 'active' : ''}`}
+          >
+            <Heart size={20} />
+          </button>
         </div>
       </div>
-      <div className="track-album">{track.album?.title || 'Single'}</div>
-      <div className="track-duration">{formatTime(track.duration)}</div>
-      <div className="track-actions">
-        <button
-          onClick={() => toggleFavorite(track)}
-          className={`favorite-btn ${isFavorite(track.id) ? 'active' : ''}`}
-        >
-          <Heart size={20} />
-        </button>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="app">
@@ -469,7 +504,7 @@ const SoundStorm = () => {
                 <h2>Popular Right Now</h2>
                 <div className="track-list">
                   {popularTracks.map((track, index) => (
-                    <TrackRow key={track.id} track={track} index={index} />
+                    <TrackRow key={track.id} track={track} index={index} playlist={popularTracks} />
                   ))}
                 </div>
               </div>
@@ -480,7 +515,7 @@ const SoundStorm = () => {
                 <h2>Search Results</h2>
                 <div className="track-list">
                   {searchResults.map((track, index) => (
-                    <TrackRow key={track.id} track={track} index={index} />
+                    <TrackRow key={track.id} track={track} index={index} playlist={searchResults} />
                   ))}
                 </div>
               </div>
@@ -497,7 +532,7 @@ const SoundStorm = () => {
                 ) : (
                   <div className="track-list">
                     {favorites.map((track, index) => (
-                      <TrackRow key={track.id} track={track} index={index} />
+                      <TrackRow key={track.id} track={track} index={index} playlist={favorites} />
                     ))}
                   </div>
                 )}
@@ -563,11 +598,11 @@ const SoundStorm = () => {
 
           <div className="player-controls">
             <div className="player-buttons">
-              <button><SkipBack size={20} /></button>
+              <button onClick={playPreviousTrack}><SkipBack size={20} /></button>
               <button onClick={togglePlayPause} className="play-btn">
                 {isPlaying ? <Pause size={20} /> : <Play size={20} />}
               </button>
-              <button><SkipForward size={20} /></button>
+              <button onClick={playNextTrack}><SkipForward size={20} /></button>
             </div>
             <div className="player-progress">
               <span>{formatTime(currentTime)}</span>
