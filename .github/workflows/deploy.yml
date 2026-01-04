@@ -1,0 +1,42 @@
+name: Build, push, and deploy soundstorm
+
+on:
+  push:
+    branches:
+      - main
+      - pipeline-setup
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Docker image
+        run: |
+          docker build -t xxvladxx/soundstorm:latest .
+
+      - name: Push Docker image
+        run: |
+          docker push xxvladxx/soundstorm:latest
+
+      - name: Deploy to VM via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            docker pull xxvladxx/soundstorm:latest
+            docker stop soundstorm || true
+            docker rm soundstorm || true
+            docker run -d --name soundstorm -p 80:80 xxvladxx/soundstorm:latest
