@@ -1,13 +1,17 @@
 FROM nginx:alpine
 
-# Remove default nginx content
-RUN rm -rf /usr/share/nginx/html/*
+# Remove default nginx config
+RUN rm /etc/nginx/conf.d/default.conf
 
-# Copy your site files into nginx web root
+# Copy your custom HTTPS-enabled nginx config
+COPY nginx/default.conf /etc/nginx/conf.d/default.conf
+
+# Copy your static site files
 COPY . /usr/share/nginx/html
 
-# Expose port 80 (nginx default)
+# Expose HTTP and HTTPS
 EXPOSE 80
+EXPOSE 443
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
