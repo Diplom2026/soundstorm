@@ -22,11 +22,11 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t xxvladxx/soundstorm:latest .
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/soundstorm:latest .
 
       - name: Push Docker image
         run: |
-          docker push xxvladxx/soundstorm:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/soundstorm:latest
 
       - name: Deploy to VM
         uses: appleboy/ssh-action@v1.0.3
@@ -38,10 +38,11 @@ jobs:
             docker stop soundstorm || true
             docker rm soundstorm || true
 
-            docker pull xxvladxx/soundstorm:latest
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/soundstorm:latest
 
             docker run -d \
               --name soundstorm \
               -p 80:80 \
               -p 443:443 \
-              -v /etc/letsencrypt
+              -v /etc/letsencrypt/live/soundstorm.pp.ua:/certs:ro \
+              ${{ secrets.DOCKERHUB_USERNAME }}/soundstorm:latest
