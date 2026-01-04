@@ -12,10 +12,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -28,15 +28,20 @@ jobs:
         run: |
           docker push xxvladxx/soundstorm:latest
 
-      - name: Deploy to VM via SSH
+      - name: Deploy to VM
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
+          host: ${{ secrets.VM_IP }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
           script: |
-            docker pull xxvladxx/soundstorm:latest
             docker stop soundstorm || true
             docker rm soundstorm || true
-            docker run -d --name soundstorm -p 80:80 xxvladxx/soundstorm:latest
+
+            docker pull xxvladxx/soundstorm:latest
+
+            docker run -d \
+              --name soundstorm \
+              -p 80:80 \
+              -p 443:443 \
+              -v /etc/letsencrypt
