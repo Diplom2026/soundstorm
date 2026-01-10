@@ -34,6 +34,8 @@ const SoundStorm = () => {
   const [sleepTimer, setSleepTimer] = useState(0);
   const [showFullPlayer, setShowFullPlayer] = useState(false);
   const [showAddToPlaylistMenu, setShowAddToPlaylistMenu] = useState(null);
+  const [selectedGenre, setSelectedGenre] = useState(null);
+  const [genreTracks, setGenreTracks] = useState([]);
   const audioRef = useRef(null);
   const sleepTimerRef = useRef(null);
 
@@ -130,6 +132,51 @@ const SoundStorm = () => {
       console.error('Error searching:', error);
     }
   };
+
+  const fetchGenreTracks = async (genre) => {
+  try {
+    const searchTerms = {
+      'Pop': 'pop+music',
+      'Rock': 'rock+music',
+      'Hip Hop': 'hip+hop+rap',
+      'Electronic': 'electronic+dance',
+      'Jazz': 'jazz+music',
+      'Classical': 'classical+music',
+      'Country': 'country+music',
+      'R&B': 'r&b+soul'
+    };
+    
+    const term = searchTerms[genre] || genre.toLowerCase();
+    const response = await fetch(`https://itunes.apple.com/search?term=${term}&limit=50&media=music&entity=song`);
+    const data = await response.json();
+    
+    if (data.results) {
+      const tracks = data.results.map((track) => ({
+        id: track.trackId,
+        title: track.trackName,
+        preview: track.previewUrl,
+        duration: Math.floor(track.trackTimeMillis / 1000),
+        artist: { name: track.artistName },
+        album: { 
+          title: track.collectionName,
+          cover_small: track.artworkUrl100,
+          cover_large: track.artworkUrl100.replace('100x100', '600x600')
+        },
+        cover_small: track.artworkUrl100,
+        cover_large: track.artworkUrl100.replace('100x100', '600x600')
+      }));
+      setGenreTracks(tracks);
+    }
+  } catch (error) {
+    console.error('Error fetching genre tracks:', error);
+  }
+};
+
+const handleGenreClick = (genre) => {
+  setSelectedGenre(genre);
+  setCurrentView('genre-detail');
+  fetchGenreTracks(genre);
+};
 
   const validateUsername = (username) => {
     if (username.length < 3) {
@@ -704,17 +751,45 @@ const SoundStorm = () => {
             )}
 
             {currentView === 'genres' && (
-              <div>
-                <h2>Genres</h2>
-                <div className="genre-grid">
-                  {['Pop', 'Rock', 'Hip Hop', 'Electronic', 'Jazz', 'Classical', 'Country', 'R&B'].map(genre => (
-                    <div key={genre} className="genre-card">
-                      <h3>{genre}</h3>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+  <div>
+    <h2>Genres</h2>
+    <div className="genre-grid">
+      {['Pop', 'Rock', 'Hip Hop', 'Electronic', 'Jazz', 'Classical', 'Country', 'R&B'].map(genre => (
+        <div 
+          key={genre} 
+          className="genre-card"
+          onClick={() => handleGenreClick(genre)}
+        >
+          <h3>{genre}</h3>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
+{currentView === 'genre-detail' && selectedGenre && (
+  <div>
+    <button 
+      onClick={() => setCurrentView('genres')} 
+      className="back-button"
+    >
+      ← Back to Genres
+    </button>
+    <h2>{selectedGenre}</h2>
+    {genreTracks.length === 0 ? (
+      <div className="empty-state">
+        <Music size={64} />
+        <p>Loading tracks...</p>
+      </div>
+    ) : (
+      <div className="track-list">
+        {genreTracks.map((track, index) => (
+          <TrackRow key={track.id} track={track} index={index} playlist={genreTracks} />
+        ))}
+      </div>
+    )}
+  </div>
+)}
 
             {currentView === 'charts' && (
               <div>
