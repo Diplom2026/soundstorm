@@ -527,7 +527,7 @@ const SoundStorm = () => {
             </button>
             <button onClick={() => setCurrentView('recent')} className={currentView === 'recent' ? 'active' : ''}>
               <History size={24} />
-              <span>Recently Played</span>
+              <span style={{whiteSpace: 'nowrap'}}>Recently Played</span>
             </button>
           </nav>
 

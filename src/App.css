@@ -146,6 +146,8 @@ body {
   padding: 24px;
   display: flex;
   flex-direction: column;
+  overflow-y: auto; 
+  overflow-x: hidden;
 }
 
 .sidebar-header {
@@ -1137,4 +1139,22 @@ body {
 
 .favorite-btn-large.active svg {
   fill: #1db954;
+}
+
+/* скроллбар */
+.sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: #000;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: #282828;
+  border-radius: 4px;
+}
+
+.sidebar::-webkit-scrollbar-thumb:hover {
+  background: #404040;
 }
