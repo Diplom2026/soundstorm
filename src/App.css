@@ -1158,3 +1158,69 @@ body {
 .sidebar::-webkit-scrollbar-thumb:hover {
   background: #404040;
 }
+
+.add-to-playlist-btn {
+  background: none;
+  border: none;
+  color: #b3b3b3;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.2s;
+}
+
+.add-to-playlist-btn:hover {
+  color: #fff;
+}
+
+.playlist-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background: #282828;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  min-width: 200px;
+  z-index: 100;
+  margin-top: 8px;
+}
+
+.playlist-menu-header {
+  padding: 12px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #b3b3b3;
+  border-bottom: 1px solid #404040;
+}
+
+.playlist-menu-empty {
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #b3b3b3;
+  text-align: center;
+}
+
+.playlist-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s;
+  text-align: left;
+}
+
+.playlist-menu-item:hover {
+  background: #404040;
+}
+
+.track-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  position: relative;
+}

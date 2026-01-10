@@ -33,6 +33,7 @@ const SoundStorm = () => {
   const [autoPlay, setAutoPlay] = useState(true);
   const [sleepTimer, setSleepTimer] = useState(0);
   const [showFullPlayer, setShowFullPlayer] = useState(false);
+  const [showAddToPlaylistMenu, setShowAddToPlaylistMenu] = useState(null);
   const audioRef = useRef(null);
   const sleepTimerRef = useRef(null);
 
@@ -260,6 +261,19 @@ const SoundStorm = () => {
     }
   };
 
+  const addTrackToPlaylist = (playlistId, track) => {
+  setPlaylists(prev => prev.map(playlist => {
+    if (playlist.id === playlistId) {
+      const trackExists = playlist.tracks.find(t => t.id === track.id);
+      if (!trackExists) {
+        return { ...playlist, tracks: [...playlist.tracks, track] };
+      }
+    }
+    return playlist;
+  }));
+  setShowAddToPlaylistMenu(null);
+  };
+
   const handleSearchKeyPress = (e) => {
     if (e.key === 'Enter') {
       handleSearch();
@@ -468,40 +482,66 @@ const SoundStorm = () => {
   }
 
   const TrackRow = memo(({ track, index, playlist }) => {
-    const isCurrentTrack = currentTrack?.id === track.id;
-    
-    return (
-      <div className={`track-row ${isCurrentTrack ? 'current-track' : ''}`}>
-        <div className="track-number">
-          <span className="number">{index + 1}</span>
-          <button onClick={() => playTrack(track, playlist)} className="play-btn-small">
-            {isCurrentTrack && isPlaying ? (
-              <Pause size={16} />
-            ) : (
-              <Play size={16} />
-            )}
-          </button>
-        </div>
-        <div className="track-info" onClick={() => setShowFullPlayer(true)}>
-          <img src={track.cover_small} alt={track.title} />
-          <div className="track-details">
-            <div className="track-title">{track.title}</div>
-            <div className="track-artist">{track.artist?.name}</div>
-          </div>
-        </div>
-        <div className="track-album">{track.album?.title || 'Single'}</div>
-        <div className="track-duration">{formatTime(track.duration)}</div>
-        <div className="track-actions">
-          <button
-            onClick={() => toggleFavorite(track)}
-            className={`favorite-btn ${isFavorite(track.id) ? 'active' : ''}`}
-          >
-            <Heart size={20} />
-          </button>
+  const isCurrentTrack = currentTrack?.id === track.id;
+  
+  return (
+    <div className={`track-row ${isCurrentTrack ? 'current-track' : ''}`}>
+      <div className="track-number">
+        <span className="number">{index + 1}</span>
+        <button onClick={() => playTrack(track, playlist)} className="play-btn-small">
+          {isCurrentTrack && isPlaying ? (
+            <Pause size={16} />
+          ) : (
+            <Play size={16} />
+          )}
+        </button>
+      </div>
+      <div className="track-info" onClick={() => setShowFullPlayer(true)}>
+        <img src={track.cover_small} alt={track.title} />
+        <div className="track-details">
+          <div className="track-title">{track.title}</div>
+          <div className="track-artist">{track.artist?.name}</div>
         </div>
       </div>
-    );
-  });
+      <div className="track-album">{track.album?.title || 'Single'}</div>
+      <div className="track-duration">{formatTime(track.duration)}</div>
+      <div className="track-actions">
+        <button
+          onClick={() => toggleFavorite(track)}
+          className={`favorite-btn ${isFavorite(track.id) ? 'active' : ''}`}
+        >
+          <Heart size={20} />
+        </button>
+        <button
+          onClick={() => setShowAddToPlaylistMenu(showAddToPlaylistMenu === track.id ? null : track.id)}
+          className="add-to-playlist-btn"
+          style={{ position: 'relative' }}
+        >
+          <PlusCircle size={20} />
+        </button>
+        {showAddToPlaylistMenu === track.id && (
+          <div className="playlist-menu">
+            <div className="playlist-menu-header">Add to playlist</div>
+            {playlists.length === 0 ? (
+              <div className="playlist-menu-empty">No playlists yet</div>
+            ) : (
+              playlists.map(pl => (
+                <button
+                  key={pl.id}
+                  onClick={() => addTrackToPlaylist(pl.id, track)}
+                  className="playlist-menu-item"
+                >
+                  <ListMusic size={16} />
+                  <span>{pl.name}</span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
 
   return (
     <div className="app">
@@ -706,6 +746,34 @@ const SoundStorm = () => {
                 </div>
               </div>
             )}
+
+            {currentView.startsWith('playlist-') && (
+  <div>
+    {(() => {
+      const playlistId = parseInt(currentView.replace('playlist-', ''));
+      const playlist = playlists.find(p => p.id === playlistId);
+      if (!playlist) return null;
+      
+      return (
+        <>
+          <h2>{playlist.name}</h2>
+          {playlist.tracks.length === 0 ? (
+            <div className="empty-state">
+              <ListMusic size={64} />
+              <p>No tracks in this playlist yet. Add some songs!</p>
+            </div>
+          ) : (
+            <div className="track-list">
+              {playlist.tracks.map((track, index) => (
+                <TrackRow key={track.id} track={track} index={index} playlist={playlist.tracks} />
+              ))}
+            </div>
+          )}
+        </>
+      );
+    })()}
+  </div>
+)}
 
             {currentView === 'profile' && currentUser && (
               <div>
