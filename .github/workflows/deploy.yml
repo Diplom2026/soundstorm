@@ -1,48 +1,50 @@
-name: Build, push, and deploy soundstorm
+
+name: Deploy Soundstorm
 
 on:
   push:
     branches:
-      - main
       - pipeline-setup
+
+env:
+  IMAGE_NAME: soundstorm
+  DOCKERHUB_REPO: ${{ secrets.DOCKERHUB_USERNAME }}/soundstorm
+  VERSION_TAG: v${{ github.run_number }}
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Log in to DockerHub
+      run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
-      - name: Build Docker image
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/soundstorm:latest .
+    - name: Build Docker image
+      run: docker build -t $IMAGE_NAME .
 
-      - name: Push Docker image
-        run: |
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/soundstorm:latest
+    - name: Tag and push versioned images
+      run: |
+        docker tag $IMAGE_NAME $DOCKERHUB_REPO:${VERSION_TAG}
+        docker tag $IMAGE_NAME $DOCKERHUB_REPO:latest
+        docker push $DOCKERHUB_REPO:${VERSION_TAG}
+        docker push $DOCKERHUB_REPO:latest
 
-      - name: Deploy to VM
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VM_IP }}
-          username: ${{ secrets.VM_USER }}
-          key: ${{ secrets.VM_SSH_KEY }}
-          script: |
-            docker stop soundstorm || true
-            docker rm soundstorm || true
-
-            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/soundstorm:latest
-
-            docker run -d \
-              --name soundstorm \
-              -p 80:80 \
-              -p 443:443 \
-              -v /etc/letsencrypt/live/soundstorm.pp.ua:/certs:ro \
-              ${{ secrets.DOCKERHUB_USERNAME }}/soundstorm:latest
+    - name: Deploy to VM via SSH
+      uses: appleboy/ssh-action@v0.1.10
+      with:
+        host: ${{ secrets.VM_IP }}
+        username: ${{ secrets.VM_USER }}
+        key: ${{ secrets.VM_SSH_KEY }}
+        script: |
+          docker pull $DOCKERHUB_REPO:${VERSION_TAG}
+          docker rm -f soundstorm || true
+          docker run -d \
+            --name soundstorm \
+            -p 80:80 \
+            -p 443:443 \
+            -v /etc/letsencrypt/live/soundstorm.pp.ua-0001:/certs/live:ro \
+            -v /etc/letsencrypt/archive/soundstorm.pp.ua-0001:/certs/archive:ro \
+            $DOCKERHUB_REPO:${VERSION_TAG}
