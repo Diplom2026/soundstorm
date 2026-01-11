@@ -21,3 +21,17 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# ASP.NET Core / .NET
+backend/**/bin/
+backend/**/obj/
+backend/**/*.suo
+backend/**/*.cache
+backend/**/Properties/launchSettings.json
+*.dll
+*.exe
+*.pdb
+*.cache
+*.user
+*.suo
+.vs/
