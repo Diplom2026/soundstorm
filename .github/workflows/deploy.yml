@@ -35,3 +35,4 @@ jobs:
           DOCKERHUB_REPO: ${{ secrets.DOCKERHUB_REPO }}
           VERSION_TAG: v8
 
+
