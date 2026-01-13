@@ -6,7 +6,7 @@ on:
 
 env:
   IMAGE_NAME: xxvladxx/soundstorm     # your DockerHub repo
-  IMAGE_TAG: v9                       # ← updated tag
+  IMAGE_TAG: v10                       # ← updated tag
 
 jobs:
   # --- CI: Build and Push to DockerHub ---
