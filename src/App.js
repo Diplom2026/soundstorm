@@ -36,14 +36,19 @@ const SoundStorm = () => {
   const [showAddToPlaylistMenu, setShowAddToPlaylistMenu] = useState(null);
   const [selectedGenre, setSelectedGenre] = useState(null);
   const [genreTracks, setGenreTracks] = useState([]);
+  const [artists, setArtists] = useState([]);
+  const [selectedArtist, setSelectedArtist] = useState(null);
+  const [artistTracks, setArtistTracks] = useState([]);
+  const [artistTopTracks, setArtistTopTracks] = useState([]);
   const audioRef = useRef(null);
   const sleepTimerRef = useRef(null);
 
   useEffect(() => {
-    if (isLoggedIn) {
-      fetchPopularTracks();
-    }
-  }, [isLoggedIn]);
+  if (isLoggedIn) {
+    fetchPopularTracks();
+    fetchArtists();
+  }
+}, [isLoggedIn]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -176,6 +181,77 @@ const handleGenreClick = (genre) => {
   setSelectedGenre(genre);
   setCurrentView('genre-detail');
   fetchGenreTracks(genre);
+};
+
+const fetchArtists = async () => {
+  try {
+    const popularArtists = [
+      'Taylor Swift', 'Ed Sheeran', 'Ariana Grande', 'Drake', 'Billie Eilish',
+      'The Weeknd', 'Dua Lipa', 'Post Malone', 'Justin Bieber', 'Olivia Rodrigo',
+      'Harry Styles', 'Adele', 'Bruno Mars', 'Rihanna', 'Beyoncé'
+    ];
+    
+    const artistsData = [];
+    
+    for (const artistName of popularArtists) {
+      try {
+        const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(artistName)}&limit=1&entity=song`);
+        const data = await response.json();
+        
+        if (data.results && data.results.length > 0) {
+          const track = data.results[0];
+          artistsData.push({
+            id: track.artistId,
+            name: track.artistName,
+            image: track.artworkUrl100.replace('100x100', '600x600')
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching ${artistName}:`, error);
+      }
+    }
+    
+    setArtists(artistsData);
+  } catch (error) {
+    console.error('Error fetching artists:', error);
+  }
+};
+
+const fetchArtistTracks = async (artistName) => {
+  try {
+    const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(artistName)}&limit=30&entity=song`);
+    const data = await response.json();
+    
+    if (data.results) {
+      const tracks = data.results
+        .filter(track => track.artistName.toLowerCase() === artistName.toLowerCase())
+        .map((track) => ({
+          id: track.trackId,
+          title: track.trackName,
+          preview: track.previewUrl,
+          duration: Math.floor(track.trackTimeMillis / 1000),
+          artist: { name: track.artistName },
+          album: { 
+            title: track.collectionName,
+            cover_small: track.artworkUrl100,
+            cover_large: track.artworkUrl100.replace('100x100', '600x600')
+          },
+          cover_small: track.artworkUrl100,
+          cover_large: track.artworkUrl100.replace('100x100', '600x600')
+        }));
+      
+      setArtistTracks(tracks);
+      setArtistTopTracks(tracks.slice(0, 5));
+    }
+  } catch (error) {
+    console.error('Error fetching artist tracks:', error);
+  }
+};
+
+const handleArtistClick = (artist) => {
+  setSelectedArtist(artist);
+  setCurrentView('artist-detail');
+  fetchArtistTracks(artist.name);
 };
 
   const validateUsername = (username) => {
@@ -614,7 +690,7 @@ const handleGenreClick = (genre) => {
             </button>
             <button onClick={() => setCurrentView('recent')} className={currentView === 'recent' ? 'active' : ''}>
               <History size={24} />
-              <span style={{whiteSpace: 'nowrap'}}>Recently Played</span>
+              <span style={{whiteSpace: 'nowrap'}}>Recently</span>
             </button>
           </nav>
 
@@ -803,14 +879,78 @@ const handleGenreClick = (genre) => {
             )}
 
             {currentView === 'artists' && (
-              <div>
-                <h2>Artists</h2>
-                <div className="empty-state">
-                  <Mic2 size={64} />
-                  <p>Artists view coming soon!</p>
-                </div>
-              </div>
-            )}
+  <div>
+    <h2>Artists</h2>
+    {artists.length === 0 ? (
+      <div className="empty-state">
+        <Mic2 size={64} />
+        <p>Loading artists...</p>
+      </div>
+    ) : (
+      <div className="artists-grid">
+        {artists.map(artist => (
+          <div 
+            key={artist.id} 
+            className="artist-card"
+            onClick={() => handleArtistClick(artist)}
+          >
+            <img src={artist.image} alt={artist.name} />
+            <h3>{artist.name}</h3>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+
+{currentView === 'artist-detail' && selectedArtist && (
+  <div>
+    <button 
+      onClick={() => setCurrentView('artists')} 
+      className="back-button"
+    >
+      ← Back to Artists
+    </button>
+    <div className="artist-header">
+      <img src={selectedArtist.image} alt={selectedArtist.name} className="artist-header-image" />
+      <h1>{selectedArtist.name}</h1>
+    </div>
+    
+    <div className="artist-content">
+      <div className="top-tracks-section">
+        <h2>Top 5 Popular Songs</h2>
+        {artistTopTracks.length === 0 ? (
+          <div className="empty-state">
+            <Music size={64} />
+            <p>Loading top tracks...</p>
+          </div>
+        ) : (
+          <div className="track-list">
+            {artistTopTracks.map((track, index) => (
+              <TrackRow key={track.id} track={track} index={index} playlist={artistTopTracks} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="all-tracks-section">
+        <h2>All Songs</h2>
+        {artistTracks.length === 0 ? (
+          <div className="empty-state">
+            <Music size={64} />
+            <p>Loading tracks...</p>
+          </div>
+        ) : (
+          <div className="track-list">
+            {artistTracks.map((track, index) => (
+              <TrackRow key={track.id} track={track} index={index} playlist={artistTracks} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
 
             {currentView === 'albums' && (
               <div>

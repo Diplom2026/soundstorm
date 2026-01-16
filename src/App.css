@@ -1247,3 +1247,82 @@ body {
 .back-button:hover {
   color: #fff;
 }
+
+/* ARTISTS GRID */
+.artists-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.artist-card {
+  background: #181818;
+  padding: 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.artist-card:hover {
+  background: #282828;
+  transform: scale(1.05);
+}
+
+.artist-card img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 50%;
+  margin-bottom: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.artist-card h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ARTIST DETAIL */
+.artist-header {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  margin-bottom: 48px;
+  padding: 32px;
+  background: linear-gradient(180deg, #282828 0%, transparent 100%);
+  border-radius: 8px;
+}
+
+.artist-header-image {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.artist-header h1 {
+  font-size: 48px;
+  font-weight: bold;
+  margin: 0;
+}
+
+.artist-content {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.top-tracks-section h2,
+.all-tracks-section h2 {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 24px;
+}
