@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { Heart, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Search, Home, Music, User, LogOut, Settings, HelpCircle, Trash2, Clock, ListMusic, Disc, Mic2, Album, PlusCircle, History, ChevronDown } from 'lucide-react';
 import './App.css';
+import Logo from './components/Logo';
 
 const SoundStorm = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -619,11 +620,11 @@ const initializeCollections = () => {
     return (
       <div className="auth-container">
         <div className="auth-box">
-          <div className="auth-header">
-            <Music className="logo-icon" />
-            <h1>SoundStorm</h1>
-            <p>Music for everyone</p>
-          </div>
+         <div className="auth-header">
+             <Logo size={64} />
+             <h1>SoundStorm</h1>
+             <p>Music for everyone</p>
+           </div>
 
           {!showRegister ? (
             <div className="auth-form">
@@ -778,7 +779,7 @@ const initializeCollections = () => {
       <div className="main-container">
         <div className="sidebar">
           <div className="sidebar-header">
-            <Music size={40} />
+            <Logo size={48} />
             <h1>SoundStorm</h1>
           </div>
 
