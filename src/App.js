@@ -40,6 +40,9 @@ const SoundStorm = () => {
   const [selectedArtist, setSelectedArtist] = useState(null);
   const [artistTracks, setArtistTracks] = useState([]);
   const [artistTopTracks, setArtistTopTracks] = useState([]);
+  const [collections, setCollections] = useState([]);
+  const [selectedCollection, setSelectedCollection] = useState(null);
+  const [collectionTracks, setCollectionTracks] = useState([]);
   const audioRef = useRef(null);
   const sleepTimerRef = useRef(null);
 
@@ -47,6 +50,7 @@ const SoundStorm = () => {
   if (isLoggedIn) {
     fetchPopularTracks();
     fetchArtists();
+    initializeCollections();
   }
 }, [isLoggedIn]);
 
@@ -252,6 +256,109 @@ const handleArtistClick = (artist) => {
   setSelectedArtist(artist);
   setCurrentView('artist-detail');
   fetchArtistTracks(artist.name);
+};
+
+const fetchCollectionTracks = async (collectionName, searchTerm) => {
+  try {
+    const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchTerm)}&limit=30&entity=song`);
+    const data = await response.json();
+    
+    if (data.results) {
+      const tracks = data.results.map((track) => ({
+        id: track.trackId,
+        title: track.trackName,
+        preview: track.previewUrl,
+        duration: Math.floor(track.trackTimeMillis / 1000),
+        artist: { name: track.artistName },
+        album: { 
+          title: track.collectionName,
+          cover_small: track.artworkUrl100,
+          cover_large: track.artworkUrl100.replace('100x100', '600x600')
+        },
+        cover_small: track.artworkUrl100,
+        cover_large: track.artworkUrl100.replace('100x100', '600x600')
+      }));
+      setCollectionTracks(tracks);
+    }
+  } catch (error) {
+    console.error('Error fetching collection tracks:', error);
+  }
+};
+
+const handleCollectionClick = (collection) => {
+  setSelectedCollection(collection);
+  setCurrentView('collection-detail');
+  fetchCollectionTracks(collection.name, collection.searchTerm);
+};
+
+const initializeCollections = () => {
+  const collectionsData = [
+    {
+      id: 1,
+      name: 'Club Bangers',
+      description: 'Best tracks for the club',
+      searchTerm: 'club+dance+party+edm',
+      image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=600',
+      color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+    },
+    {
+      id: 2,
+      name: 'Summer Vibes',
+      description: 'Perfect for sunny days',
+      searchTerm: 'summer+vibes+beach',
+      image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600',
+      color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
+    },
+    {
+      id: 3,
+      name: 'Workout Energy',
+      description: 'Pump up your workout',
+      searchTerm: 'workout+gym+motivation',
+      image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600',
+      color: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
+    },
+    {
+      id: 4,
+      name: 'Chill & Relax',
+      description: 'Calm and peaceful vibes',
+      searchTerm: 'chill+relax+lofi',
+      image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600',
+      color: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)'
+    },
+    {
+      id: 5,
+      name: 'Road Trip',
+      description: 'Songs for the open road',
+      searchTerm: 'road+trip+driving',
+      image: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600',
+      color: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)'
+    },
+    {
+      id: 6,
+      name: 'Party Hits',
+      description: 'Get the party started',
+      searchTerm: 'party+hits+celebration',
+      image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600',
+      color: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)'
+    },
+    {
+      id: 7,
+      name: 'Study Focus',
+      description: 'Concentrate better',
+      searchTerm: 'study+focus+instrumental',
+      image: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=600',
+      color: 'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)'
+    },
+    {
+      id: 8,
+      name: 'Late Night',
+      description: 'For those midnight hours',
+      searchTerm: 'night+midnight+slow',
+      image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600',
+      color: 'linear-gradient(135deg, #434343 0%, #000000 100%)'
+    }
+  ];
+  setCollections(collectionsData);
 };
 
   const validateUsername = (username) => {
@@ -953,14 +1060,56 @@ const handleArtistClick = (artist) => {
 )}
 
             {currentView === 'albums' && (
-              <div>
-                <h2>Albums</h2>
-                <div className="empty-state">
-                  <Album size={64} />
-                  <p>Albums view coming soon!</p>
-                </div>
-              </div>
-            )}
+  <div>
+    <h2>Collections</h2>
+    <div className="collections-grid">
+      {collections.map(collection => (
+        <div 
+          key={collection.id} 
+          className="collection-card"
+          onClick={() => handleCollectionClick(collection)}
+          style={{ background: collection.color }}
+        >
+          <div className="collection-overlay"></div>
+          <div className="collection-content">
+            <h3>{collection.name}</h3>
+            <p>{collection.description}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
+{currentView === 'collection-detail' && selectedCollection && (
+  <div>
+    <button 
+      onClick={() => setCurrentView('albums')} 
+      className="back-button"
+    >
+      ← Back to Collections
+    </button>
+    <div className="collection-header" style={{ background: selectedCollection.color }}>
+      <div className="collection-header-content">
+        <h1>{selectedCollection.name}</h1>
+        <p>{selectedCollection.description}</p>
+      </div>
+    </div>
+    
+    {collectionTracks.length === 0 ? (
+      <div className="empty-state">
+        <Music size={64} />
+        <p>Loading tracks...</p>
+      </div>
+    ) : (
+      <div className="track-list">
+        {collectionTracks.map((track, index) => (
+          <TrackRow key={track.id} track={track} index={index} playlist={collectionTracks} />
+        ))}
+      </div>
+    )}
+  </div>
+)}
 
             {currentView.startsWith('playlist-') && (
   <div>
@@ -1025,17 +1174,17 @@ const handleArtistClick = (artist) => {
                     </div>
                     <div className="section-content">
                       <div className="setting-item">
-                        <label>Default Volume</label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.1"
-                          value={volume}
-                          onChange={(e) => setVolume(parseFloat(e.target.value))}
-                          className="volume-slider"
-                        />
-                        <span>{Math.round(volume * 100)}%</span>
+                         <label>Default Volume</label>
+                           <input
+                             type="range"
+                             min="0"
+                             max="1"
+                             step="0.01"
+                             value={volume}
+                             onChange={(e) => setVolume(parseFloat(e.target.value))}
+                             className="volume-slider"
+                          />
+                            <span>{Math.round(volume * 100)}%</span>
                       </div>
                       <div className="setting-item">
                         <label>Auto-play next track</label>
