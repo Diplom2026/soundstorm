@@ -840,29 +840,29 @@ const initializeCollections = () => {
           </div>
 
           <div className="sidebar-footer">
-            <button onClick={() => setCurrentView('profile')} className="profile-btn">
-              <User size={20} />
-              <span>{currentUser.username}</span>
-            </button>
-            <button onClick={handleLogout} className="logout-btn">
-              <LogOut size={20} />
-              <span>Log out</span>
-            </button>
+              <button onClick={handleLogout} className="logout-btn">
+                <LogOut size={20} />
+                <span>Log out</span>
+              </button>
           </div>
         </div>
 
         <div className="content">
           <div className="search-bar">
-            <div className="search-input-wrapper">
-              <Search className="search-icon" />
+           <div className="search-input-wrapper">
+             <Search className="search-icon" />
               <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={handleSearchKeyPress}
-                placeholder="Search for songs, artists..."
+               type="text"
+               value={searchQuery}
+               onChange={(e) => setSearchQuery(e.target.value)}
+               onKeyPress={handleSearchKeyPress}
+               placeholder="Search for songs, artists..."
               />
-            </div>
+           </div>
+           <button onClick={() => setCurrentView('profile')} className="header-profile-btn">
+            <User size={20} />
+            <span>{currentUser.username}</span>
+           </button>
           </div>
 
           <div className="content-body">
