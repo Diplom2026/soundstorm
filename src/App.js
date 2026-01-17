@@ -505,6 +505,15 @@ const initializeCollections = () => {
   setShowAddToPlaylistMenu(null);
   };
 
+  const removeTrackFromPlaylist = (playlistId, trackId) => {
+  setPlaylists(prev => prev.map(playlist => {
+    if (playlist.id === playlistId) {
+      return { ...playlist, tracks: playlist.tracks.filter(t => t.id !== trackId) };
+    }
+    return playlist;
+  }));
+  };
+
   const handleSearchKeyPress = (e) => {
     if (e.key === 'Enter') {
       handleSearch();
@@ -712,7 +721,7 @@ const initializeCollections = () => {
     );
   }
 
-  const TrackRow = memo(({ track, index, playlist }) => {
+  const TrackRow = memo(({ track, index, playlist, isPlaylistView = false, playlistId = null }) => {
   const isCurrentTrack = currentTrack?.id === track.id;
   
   return (
@@ -738,39 +747,58 @@ const initializeCollections = () => {
       <div className="track-duration">{formatTime(track.duration)}</div>
       <div className="track-actions">
         <button
-          onClick={() => toggleFavorite(track)}
+          onClick={(e) => { e.stopPropagation(); toggleFavorite(track); }}
           className={`favorite-btn ${isFavorite(track.id) ? 'active' : ''}`}
         >
           <Heart size={20} />
         </button>
-        <button
-          onClick={() => setShowAddToPlaylistMenu(showAddToPlaylistMenu === track.id ? null : track.id)}
-          className="add-to-playlist-btn"
-          style={{ position: 'relative' }}
-        >
-          <PlusCircle size={20} />
-        </button>
-        {showAddToPlaylistMenu === track.id && (
-          <div className="playlist-menu">
-            <div className="playlist-menu-header">Add to playlist</div>
-            {playlists.length === 0 ? (
-              <div className="playlist-menu-empty">No playlists yet</div>
-            ) : (
-              playlists.map(pl => (
-                <button
-                  key={pl.id}
-                  onClick={() => addTrackToPlaylist(pl.id, track)}
-                  className="playlist-menu-item"
-                >
-                  <ListMusic size={16} />
-                  <span>{pl.name}</span>
-                </button>
-              ))
+        
+        {isPlaylistView && playlistId ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); removeTrackFromPlaylist(playlistId, track.id); }}
+            className="remove-from-playlist-btn"
+            title="Remove from playlist"
+          >
+            <Trash2 size={20} />
+          </button>
+        ) : (
+          <>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowAddToPlaylistMenu(showAddToPlaylistMenu === track.id ? null : track.id); }}
+              className="add-to-playlist-btn"
+              style={{ position: 'relative' }}
+            >
+              <PlusCircle size={20} />
+            </button>
+            {showAddToPlaylistMenu === track.id && (
+              <div className="playlist-menu" onClick={(e) => e.stopPropagation()}>
+                <div className="playlist-menu-header">Add to playlist</div>
+                {playlists.length === 0 ? (
+                  <div className="playlist-menu-empty">No playlists yet</div>
+                ) : (
+                  playlists.map(pl => (
+                    <button
+                      key={pl.id}
+                      onClick={(e) => { e.stopPropagation(); addTrackToPlaylist(pl.id, track); }}
+                      className="playlist-menu-item"
+                    >
+                      <ListMusic size={16} />
+                      <span>{pl.name}</span>
+                    </button>
+                  ))
+                )}
+              </div>
             )}
-          </div>
+          </>
         )}
       </div>
     </div>
+  );
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.track.id === nextProps.track.id &&
+    prevProps.index === nextProps.index &&
+    prevProps.isPlaylistView === nextProps.isPlaylistView
   );
 });
 
@@ -1121,7 +1149,10 @@ const initializeCollections = () => {
       
       return (
         <>
-          <h2>{playlist.name}</h2>
+          <div className="playlist-header-section">
+            <h2>{playlist.name}</h2>
+            <span className="playlist-count">{playlist.tracks.length} songs</span>
+          </div>
           {playlist.tracks.length === 0 ? (
             <div className="empty-state">
               <ListMusic size={64} />
@@ -1130,7 +1161,14 @@ const initializeCollections = () => {
           ) : (
             <div className="track-list">
               {playlist.tracks.map((track, index) => (
-                <TrackRow key={track.id} track={track} index={index} playlist={playlist.tracks} />
+                <TrackRow 
+                  key={track.id} 
+                  track={track} 
+                  index={index} 
+                  playlist={playlist.tracks}
+                  isPlaylistView={true}
+                  playlistId={playlistId}
+                />
               ))}
             </div>
           )}

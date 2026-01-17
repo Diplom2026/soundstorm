@@ -1527,3 +1527,34 @@ body {
 .header-profile-btn:active {
   transform: scale(0.98);
 }
+
+/* REMOVE FROM PLAYLIST BUTTON */
+.remove-from-playlist-btn {
+  background: none;
+  border: none;
+  color: #b3b3b3;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.2s;
+}
+
+.remove-from-playlist-btn:hover {
+  color: #ff4444;
+}
+
+/* PLAYLIST HEADER SECTION */
+.playlist-header-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.playlist-header-section h2 {
+  margin: 0;
+}
+
+.playlist-count {
+  color: #b3b3b3;
+  font-size: 14px;
+}
