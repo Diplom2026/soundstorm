@@ -2,16 +2,41 @@ name: Build and Deploy Pipeline
 
 on:
   push:
-    branches: [ "pipeline-setup" ]   # or "main" if you prefer
-
-env:
-  IMAGE_NAME: xxvladxx/soundstorm     # your DockerHub repo
-  IMAGE_TAG: v10                       # ← updated tag
+    branches: [ "pipeline-setup" ]
 
 jobs:
-  # --- CI: Build and Push to DockerHub ---
+  bump-version:
+    runs-on: ubuntu-latest
+    outputs:
+      new_tag: ${{ steps.bump.outputs.new_tag }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Bump version
+        id: bump
+        run: |
+          current=$(cat VERSION)
+          num=${current#v}
+          next=v$((num + 1))
+          echo "$next" > VERSION
+          echo "new_tag=$next" >> $GITHUB_OUTPUT
+
+      - name: Commit new version
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add VERSION
+          git commit -m "Auto bump to ${{ steps.bump.outputs.new_tag }}" || echo "No changes to commit"
+          git push
+
   build-and-push:
     runs-on: ubuntu-latest
+    needs: bump-version
+    env:
+      IMAGE_NAME: xxvladxx/soundstorm
+      IMAGE_TAG: ${{ needs.bump-version.outputs.new_tag }}
 
     steps:
       - name: Checkout repo
@@ -35,10 +60,12 @@ jobs:
             ${{ env.IMAGE_NAME }}:latest
             ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
 
-  # --- CD: Deploy on VM via self-hosted runner ---
   deploy:
     runs-on: self-hosted
     needs: build-and-push
+    env:
+      IMAGE_NAME: xxvladxx/soundstorm
+      IMAGE_TAG: ${{ needs.bump-version.outputs.new_tag }}
 
     steps:
       - name: Stop old container
@@ -64,3 +91,4 @@ jobs:
         run: |
           sleep 5
           curl -f http://localhost:80 || exit 1
+
