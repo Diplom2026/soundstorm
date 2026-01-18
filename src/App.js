@@ -873,7 +873,7 @@ TrackRow.displayName = 'TrackRow';
     <div className="app">
       <div className="main-container">
         <div className="sidebar">
-          <div className="sidebar-header">
+          <div className="sidebar-header"onClick={() => setCurrentView('home')} style={{cursor: 'pointer'}}>
             <Logo size={48} />
             <h1>SoundStorm</h1>
           </div>
