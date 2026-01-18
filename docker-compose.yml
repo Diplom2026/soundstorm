@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  soundstorm:
+    image: xxvladxx/soundstorm:latest
+    container_name: soundstorm
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt/live/soundstorm.pp.ua-0001/fullchain.pem:/certs/fullchain.pem:ro
+      - /etc/letsencrypt/live/soundstorm.pp.ua-0001/privkey.pem:/certs/privkey.pem:ro
