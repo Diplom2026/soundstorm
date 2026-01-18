@@ -44,6 +44,7 @@ const SoundStorm = () => {
   const [collections, setCollections] = useState([]);
   const [selectedCollection, setSelectedCollection] = useState(null);
   const [collectionTracks, setCollectionTracks] = useState([]);
+  const [playlistMenuPosition, setPlaylistMenuPosition] = useState(null);
   const audioRef = useRef(null);
   const sleepTimerRef = useRef(null);
 
@@ -520,19 +521,19 @@ const initializeCollections = () => {
     }
   };
 
-  const toggleFavorite = useCallback((track) => {
-    setFavorites(prev => {
-      const exists = prev.find(t => t.id === track.id);
-      if (exists) {
-        return prev.filter(t => t.id !== track.id);
-      }
-      return [...prev, track];
-    });
-  }, []);
+  const toggleFavorite = (track) => {
+  setFavorites(prev => {
+    const exists = prev.find(t => t.id === track.id);
+    if (exists) {
+      return prev.filter(t => t.id !== track.id);
+    }
+    return [...prev, track];
+  });
+};
 
-  const isFavorite = useCallback((trackId) => {
-    return favorites.some(t => t.id === trackId);
-  }, [favorites]);
+  const isFavorite = (trackId) => {
+  return favorites.some(t => t.id === trackId);
+};
 
   const addToRecentlyPlayed = (track) => {
     setRecentlyPlayed(prev => {
@@ -541,58 +542,61 @@ const initializeCollections = () => {
     });
   };
 
-  const playTrack = useCallback(async (track, playlist = null) => {
-    if (currentTrack?.id === track.id) {
-      if (isPlaying) {
-        setIsPlaying(false);
-        if (audioRef.current) {
-          audioRef.current.pause();
-        }
-      } else {
-        setIsPlaying(true);
-        if (audioRef.current) {
-          try {
-            await audioRef.current.play();
-          } catch (err) {
-            console.error('Play error:', err);
-            setIsPlaying(false);
-          }
-        }
+  const playTrack = async (track, playlist = null) => {
+  // Если это та же песня - просто переключаем паузу
+  if (currentTrack?.id === track.id) {
+    if (isPlaying) {
+      setIsPlaying(false);
+      if (audioRef.current) {
+        audioRef.current.pause();
       }
-      return;
-    }
-    
-    if (playlist) {
-      setCurrentPlaylist(playlist);
-      const index = playlist.findIndex(t => t.id === track.id);
-      setCurrentTrackIndex(index);
-    }
-    
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = '';
-      audioRef.current.load();
-    }
-    
-    setIsPlaying(false);
-    setCurrentTime(0);
-    setCurrentTrack(track);
-    addToRecentlyPlayed(track);
-    
-    setTimeout(async () => {
-      if (audioRef.current && track.preview) {
+    } else {
+      setIsPlaying(true);
+      if (audioRef.current) {
         try {
-          audioRef.current.src = track.preview;
-          audioRef.current.load();
           await audioRef.current.play();
-          setIsPlaying(true);
         } catch (err) {
           console.error('Play error:', err);
           setIsPlaying(false);
         }
       }
-    }, 50);
-  }, [currentTrack, isPlaying]);
+    }
+    return;
+  }
+  
+  // Новая песня - полная остановка старой
+  if (audioRef.current) {
+    audioRef.current.pause();
+    audioRef.current.currentTime = 0;
+    audioRef.current.src = '';
+  }
+  
+  if (playlist) {
+    setCurrentPlaylist(playlist);
+    const index = playlist.findIndex(t => t.id === track.id);
+    setCurrentTrackIndex(index);
+  }
+  
+  setIsPlaying(false);
+  setCurrentTime(0);
+  setCurrentTrack(track);
+  addToRecentlyPlayed(track);
+  
+  // Загружаем и запускаем новую песню
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  if (audioRef.current && track.preview) {
+    try {
+      audioRef.current.src = track.preview;
+      await audioRef.current.load();
+      await audioRef.current.play();
+      setIsPlaying(true);
+    } catch (err) {
+      console.error('Play error:', err);
+      setIsPlaying(false);
+    }
+  }
+};
 
   const playNextTrack = () => {
     if (currentPlaylist.length === 0) return;
@@ -723,20 +727,32 @@ const initializeCollections = () => {
 
   const TrackRow = memo(({ track, index, playlist, isPlaylistView = false, playlistId = null }) => {
   const isCurrentTrack = currentTrack?.id === track.id;
+  const showPlayingIcon = isCurrentTrack && isPlaying;
   
   return (
-    <div className={`track-row ${isCurrentTrack ? 'current-track' : ''}`}>
+    <div 
+      className="track-row" 
+      data-playing={isCurrentTrack ? 'true' : 'false'}
+    >
       <div className="track-number">
         <span className="number">{index + 1}</span>
-        <button onClick={() => playTrack(track, playlist)} className="play-btn-small">
-          {isCurrentTrack && isPlaying ? (
-            <Pause size={16} />
-          ) : (
-            <Play size={16} />
-          )}
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            playTrack(track, playlist);
+          }} 
+          className="play-btn-small"
+        >
+          {showPlayingIcon ? <Pause size={16} /> : <Play size={16} />}
         </button>
       </div>
-      <div className="track-info" onClick={() => setShowFullPlayer(true)}>
+      <div 
+        className="track-info" 
+        onClick={(e) => {
+          e.stopPropagation();
+          if (currentTrack) setShowFullPlayer(true);
+        }}
+      >
         <img src={track.cover_small} alt={track.title} />
         <div className="track-details">
           <div className="track-title">{track.title}</div>
@@ -747,45 +763,83 @@ const initializeCollections = () => {
       <div className="track-duration">{formatTime(track.duration)}</div>
       <div className="track-actions">
         <button
-          onClick={(e) => { e.stopPropagation(); toggleFavorite(track); }}
-          className={`favorite-btn ${isFavorite(track.id) ? 'active' : ''}`}
+          onClick={(e) => { 
+            e.stopPropagation(); 
+            toggleFavorite(track); 
+          }}
+          className={isFavorite(track.id) ? 'favorite-btn active' : 'favorite-btn'}
+          type="button"
         >
           <Heart size={20} />
         </button>
         
         {isPlaylistView && playlistId ? (
           <button
-            onClick={(e) => { e.stopPropagation(); removeTrackFromPlaylist(playlistId, track.id); }}
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              removeTrackFromPlaylist(playlistId, track.id); 
+            }}
             className="remove-from-playlist-btn"
             title="Remove from playlist"
+            type="button"
           >
             <Trash2 size={20} />
           </button>
         ) : (
           <>
             <button
-              onClick={(e) => { e.stopPropagation(); setShowAddToPlaylistMenu(showAddToPlaylistMenu === track.id ? null : track.id); }}
+              onClick={(e) => { 
+                e.stopPropagation();
+                const isOpen = showAddToPlaylistMenu === track.id;
+                
+                if (!isOpen) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setPlaylistMenuPosition({
+                    top: rect.top -15,
+                    right: window.innerWidth - rect.right
+                  });
+                } else {
+                  setPlaylistMenuPosition(null);
+                }
+                
+                setShowAddToPlaylistMenu(isOpen ? null : track.id); 
+              }}
               className="add-to-playlist-btn"
-              style={{ position: 'relative' }}
+              type="button"
             >
               <PlusCircle size={20} />
             </button>
-            {showAddToPlaylistMenu === track.id && (
-              <div className="playlist-menu" onClick={(e) => e.stopPropagation()}>
+            {showAddToPlaylistMenu === track.id && playlistMenuPosition && (
+              <div 
+                className="playlist-menu" 
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  position: 'fixed',
+                  top: `${playlistMenuPosition.top}px`,
+                  right: `${playlistMenuPosition.right}px`,
+                  transform: 'translateY(-100%)'
+                }}
+              >
                 <div className="playlist-menu-header">Add to playlist</div>
                 {playlists.length === 0 ? (
                   <div className="playlist-menu-empty">No playlists yet</div>
                 ) : (
-                  playlists.map(pl => (
-                    <button
-                      key={pl.id}
-                      onClick={(e) => { e.stopPropagation(); addTrackToPlaylist(pl.id, track); }}
-                      className="playlist-menu-item"
-                    >
-                      <ListMusic size={16} />
-                      <span>{pl.name}</span>
-                    </button>
-                  ))
+                  <div className="playlist-menu-list">
+                    {playlists.map(pl => (
+                      <button
+                        key={pl.id}
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          addTrackToPlaylist(pl.id, track); 
+                        }}
+                        className="playlist-menu-item"
+                        type="button"
+                      >
+                        <ListMusic size={16} />
+                        <span>{pl.name}</span>
+                      </button>
+                    ))}
+                  </div>
                 )}
               </div>
             )}
@@ -795,12 +849,13 @@ const initializeCollections = () => {
     </div>
   );
 }, (prevProps, nextProps) => {
-  return (
-    prevProps.track.id === nextProps.track.id &&
-    prevProps.index === nextProps.index &&
-    prevProps.isPlaylistView === nextProps.isPlaylistView
-  );
+  if (prevProps.track.id !== nextProps.track.id) return false;
+  if (prevProps.index !== nextProps.index) return false;
+  if (prevProps.isPlaylistView !== nextProps.isPlaylistView) return false;
+  return true;
 });
+
+TrackRow.displayName = 'TrackRow';
 
   return (
     <div className="app">

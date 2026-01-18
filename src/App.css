@@ -284,25 +284,60 @@ body {
   padding: 8px 16px;
   border-radius: 4px;
   align-items: center;
-  transition: background 0.2s;
+  position: relative;
+  z-index: 1;
 }
 
 .track-row:hover {
   background: #282828;
+  z-index: 1;
+}
+
+/* Подсветка играющей песни */
+.track-row[data-playing="true"] {
+  background: #282828;
+}
+
+.track-row[data-playing="true"]:hover {
+  background: #333333;
+}
+
+.track-row[data-playing="true"] .track-title {
+  color: #1db954;
+}
+
+.track-row[data-playing="true"] .track-number .number {
+  display: none;
+}
+
+/* Зелёная полоска слева от играющей песни */
+.track-row[data-playing="true"]::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: #1db954;
+  border-radius: 4px 0 0 4px;
 }
 
 .track-number {
   color: #b3b3b3;
   font-size: 14px;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 50px;
 }
 
 .track-number .number {
   display: block;
 }
 
-.track-row:hover .number {
-  display: none;
+.track-row[data-playing="true"] .number {
+  display: none !important;
 }
 
 .play-btn-small {
@@ -310,12 +345,29 @@ body {
   background: none;
   border: none;
   color: #fff;
-  cursor: pointer;
+  cursor:pointer;
   padding: 0;
+  min-width: 24px;
+  min-height: 24px;
 }
 
 .track-row:hover .play-btn-small {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.track-row[data-playing="true"] .play-btn-small {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  color: #1db954;
+  position: absolute; 
+  left: 0;
+}
+
+.track-row[data-playing="true"] .play-btn-small svg {
+  color: #1db954;
 }
 
 .playing-indicator {
@@ -377,11 +429,7 @@ body {
   color: #b3b3b3;
   font-size: 13px;
   text-align: right;
-}
-
-.track-actions {
-  display: flex;
-  justify-content: flex-end;
+  margin-right: -15px;
 }
 
 .favorite-btn {
@@ -426,6 +474,8 @@ body {
   align-items: center;
   padding: 0 16px;
   gap: 16px;
+  z-index: 100;
+  position: relative;
 }
 
 .player-track-info {
@@ -915,10 +965,6 @@ body {
   background: #282828;
 }
 
-.track-row.current-track {
-  background: #282828;
-}
-
 .track-info {
   cursor: pointer;
 }
@@ -1174,6 +1220,8 @@ body {
   cursor: pointer;
   padding: 4px;
   transition: color 0.2s;
+  position: relative;
+  z-index: 2;
 }
 
 .add-to-playlist-btn:hover {
@@ -1181,30 +1229,58 @@ body {
 }
 
 .playlist-menu {
-  position: absolute;
+  position: fixed;
   right: 0;
   top: 100%;
-  background: #282828;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  min-width: 200px;
-  z-index: 100;
   margin-top: 8px;
+  background: #282828;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  min-width: 220px;
+  max-width: 280px;
+  z-index: 10000;
+  overflow: hidden;
+  border: 1px solid #404040;
 }
 
 .playlist-menu-header {
   padding: 12px 16px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   color: #b3b3b3;
+  text-transform: uppercase;
+  letter-spacing: 1px;
   border-bottom: 1px solid #404040;
+  background: #181818;
 }
 
 .playlist-menu-empty {
-  padding: 12px 16px;
+  padding: 16px;
   font-size: 14px;
   color: #b3b3b3;
   text-align: center;
+}
+
+.playlist-menu-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.playlist-menu-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.playlist-menu-list::-webkit-scrollbar-track {
+  background: #282828;
+}
+
+.playlist-menu-list::-webkit-scrollbar-thumb {
+  background: #404040;
+  border-radius: 4px;
+}
+
+.playlist-menu-list::-webkit-scrollbar-thumb:hover {
+  background: #4a4a4a;
 }
 
 .playlist-menu-item {
@@ -1223,14 +1299,20 @@ body {
 }
 
 .playlist-menu-item:hover {
-  background: #404040;
+  background: #3e3e3e;
 }
 
-.track-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  position: relative;
+.playlist-menu-item svg {
+  pointer-events: none;
+  flex-shrink: 0;
+  color: #b3b3b3;
+}
+
+.playlist-menu-item span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
 }
 
 .back-button {
@@ -1557,4 +1639,40 @@ body {
 .playlist-count {
   color: #b3b3b3;
   font-size: 14px;
+}
+
+/* ОСТАНАВЛИВАЕМ ПЕРЕРИСОВКУ ИКОНОК */
+.play-btn-small,
+.favorite-btn,
+.remove-from-playlist-btn {
+  pointer-events: auto;
+  cursor: pointer;
+  will-change: auto;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Убираем transition с иконок */
+.play-btn-small svg,
+.favorite-btn svg,
+.add-to-playlist-btn svg,
+.remove-from-playlist-btn svg {
+  pointer-events: none;
+  display: block;
+}
+
+/* Останавливаем перерисовку при hover */
+.track-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.track-actions button {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
