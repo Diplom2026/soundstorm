@@ -70,13 +70,14 @@ jobs:
       IMAGE_TAG: ${{ needs.bump-version.outputs.new_tag }}
 
     steps:
-      - name: Pull new image via docker compose
-        run: |
-          docker compose pull
+      - name: Checkout repo on VM
+        uses: actions/checkout@v4
+
+      - name: Pull new image
+        run: docker compose pull
 
       - name: Deploy new version
-        run: |
-          IMAGE_TAG=${{ env.IMAGE_TAG }} docker compose up -d
+        run: docker compose up -d
 
       - name: Health check
         run: |
