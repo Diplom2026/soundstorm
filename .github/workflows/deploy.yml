@@ -4,6 +4,9 @@ on:
   push:
     branches: [ "pipeline-setup" ]
 
+permissions:
+  contents: write
+
 jobs:
   bump-version:
     runs-on: ubuntu-latest
@@ -64,31 +67,18 @@ jobs:
     runs-on: self-hosted
     needs: build-and-push
     env:
-      IMAGE_NAME: xxvladxx/soundstorm
       IMAGE_TAG: ${{ needs.bump-version.outputs.new_tag }}
 
     steps:
-      - name: Stop old container
+      - name: Pull new image via docker compose
         run: |
-          docker stop soundstorm || true
-          docker rm soundstorm || true
+          docker compose pull
 
-      - name: Pull new image
-        run: docker pull ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-
-      - name: Run new container
+      - name: Deploy new version
         run: |
-          docker run -d \
-            --name soundstorm \
-            --restart always \
-            -p 80:80 \
-            -p 443:443 \
-            -v /etc/letsencrypt/live/soundstorm.pp.ua-0001/fullchain.pem:/certs/fullchain.pem:ro \
-            -v /etc/letsencrypt/live/soundstorm.pp.ua-0001/privkey.pem:/certs/privkey.pem:ro \
-            ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          IMAGE_TAG=${{ env.IMAGE_TAG }} docker compose up -d
 
       - name: Health check
         run: |
           sleep 5
           curl -f http://localhost:80 || exit 1
-
