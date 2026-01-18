@@ -1238,7 +1238,7 @@ body {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
   min-width: 220px;
   max-width: 280px;
-  z-index: 10000;
+  z-index: 99999;
   overflow: hidden;
   border: 1px solid #404040;
 }
@@ -1675,4 +1675,112 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* PLAYLIST ITEM IN SIDEBAR */
+.playlist-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  position: relative;
+}
+
+.playlist-item-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  padding: 8px 16px;
+  background: none;
+  border: none;
+  color: #b3b3b3;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.playlist-item-btn:hover {
+  color: #fff;
+  background: #282828;
+}
+
+.playlist-item-btn.active {
+  color: #fff;
+  background: #282828;
+}
+
+.delete-playlist-btn {
+  opacity: 0;
+  background: none;
+  border: none;
+  color: #b3b3b3;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.playlist-item:hover .delete-playlist-btn {
+  opacity: 1;
+}
+
+.delete-playlist-btn:hover {
+  color: #ff4444;
+  background: rgba(255, 68, 68, 0.1);
+}
+
+/* PLAYLIST HEADER */
+.playlist-header-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #282828;
+}
+
+.playlist-header-left {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.playlist-header-section h2 {
+  margin: 0;
+}
+
+.playlist-count {
+  color: #b3b3b3;
+  font-size: 14px;
+}
+
+.delete-playlist-btn-large {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: none;
+  border: 1px solid #404040;
+  border-radius: 6px;
+  color: #b3b3b3;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.delete-playlist-btn-large:hover {
+  background: rgba(255, 68, 68, 0.1);
+  border-color: #ff4444;
+  color: #ff4444;
+}
+
+.delete-playlist-btn-large svg {
+  flex-shrink: 0;
 }

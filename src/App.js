@@ -45,6 +45,8 @@ const SoundStorm = () => {
   const [selectedCollection, setSelectedCollection] = useState(null);
   const [collectionTracks, setCollectionTracks] = useState([]);
   const [playlistMenuPosition, setPlaylistMenuPosition] = useState(null);
+  const [showDeletePlaylistModal, setShowDeletePlaylistModal] = useState(false);
+  const [playlistToDelete, setPlaylistToDelete] = useState(null);
   const audioRef = useRef(null);
   const sleepTimerRef = useRef(null);
 
@@ -493,6 +495,16 @@ const initializeCollections = () => {
     }
   };
 
+ const handleDeletePlaylist = (playlistId) => {
+  setPlaylists(prev => prev.filter(p => p.id !== playlistId));
+  if (currentView === `playlist-${playlistId}`) {
+    setCurrentView('home');
+  }
+  setShowAddToPlaylistMenu(null);
+  setShowDeletePlaylistModal(false);
+  setPlaylistToDelete(null);
+ };
+
   const addTrackToPlaylist = (playlistId, track) => {
   setPlaylists(prev => prev.map(playlist => {
     if (playlist.id === playlistId) {
@@ -915,11 +927,27 @@ TrackRow.displayName = 'TrackRow';
               </button>
             </div>
             {playlists.map(playlist => (
-              <button key={playlist.id} onClick={() => setCurrentView(`playlist-${playlist.id}`)} className={currentView === `playlist-${playlist.id}` ? 'active' : ''}>
-                <ListMusic size={20} />
-                <span>{playlist.name}</span>
-              </button>
-            ))}
+  <div key={playlist.id} className="playlist-item">
+    <button 
+      onClick={() => setCurrentView(`playlist-${playlist.id}`)} 
+      className={currentView === `playlist-${playlist.id}` ? 'playlist-item-btn active' : 'playlist-item-btn'}
+    >
+      <ListMusic size={20} />
+      <span>{playlist.name}</span>
+    </button>
+    <button
+  onClick={(e) => {
+    e.stopPropagation();
+    setPlaylistToDelete(playlist);
+    setShowDeletePlaylistModal(true);
+  }}
+  className="delete-playlist-btn"
+  title="Delete playlist"
+>
+  <Trash2 size={16} />
+</button>
+  </div>
+))}
           </div>
 
           <div className="sidebar-footer">
@@ -1205,9 +1233,21 @@ TrackRow.displayName = 'TrackRow';
       return (
         <>
           <div className="playlist-header-section">
-            <h2>{playlist.name}</h2>
-            <span className="playlist-count">{playlist.tracks.length} songs</span>
-          </div>
+  <div className="playlist-header-left">
+    <h2>{playlist.name}</h2>
+    <span className="playlist-count">{playlist.tracks.length} songs</span>
+  </div>
+  <button
+  onClick={() => {
+    setPlaylistToDelete(playlist);
+    setShowDeletePlaylistModal(true);
+  }}
+  className="delete-playlist-btn-large"
+>
+  <Trash2 size={20} />
+  <span>Delete Playlist</span>
+</button>
+</div>
           {playlist.tracks.length === 0 ? (
             <div className="empty-state">
               <ListMusic size={64} />
@@ -1469,6 +1509,32 @@ TrackRow.displayName = 'TrackRow';
           </div>
         </div>
       )}
+
+      {showDeletePlaylistModal && playlistToDelete && (
+  <div className="modal-overlay">
+    <div className="modal">
+      <h3>Delete Playlist</h3>
+      <p>Are you sure you want to delete "{playlistToDelete.name}"? This action cannot be undone.</p>
+      <div className="modal-buttons">
+        <button 
+          onClick={() => {
+            setShowDeletePlaylistModal(false);
+            setPlaylistToDelete(null);
+          }} 
+          className="btn-secondary"
+        >
+          Cancel
+        </button>
+        <button 
+          onClick={() => handleDeletePlaylist(playlistToDelete.id)} 
+          className="btn-danger"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {showPlaylistModal && (
         <div className="modal-overlay">
