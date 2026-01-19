@@ -67,21 +67,22 @@ jobs:
     runs-on: self-hosted
     needs: build-and-push
 
-    defaults:
-      run:
-        working-directory: soundstorm
-
     steps:
       - name: Checkout repo on VM
         uses: actions/checkout@v4
+        with:
+          path: soundstorm
 
       - name: Pull new image
+        working-directory: soundstorm
         run: docker compose pull
 
       - name: Stop old containers
+        working-directory: soundstorm
         run: docker compose down --remove-orphans
 
       - name: Deploy new version
+        working-directory: soundstorm
         run: docker compose up -d
 
       - name: Health check
