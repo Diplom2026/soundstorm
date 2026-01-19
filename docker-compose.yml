@@ -1,3 +1,5 @@
+name: soundstorm
+
 services:
   soundstorm:
     image: xxvladxx/soundstorm:latest
@@ -11,4 +13,3 @@ services:
     volumes:
       - /etc/letsencrypt/live/soundstorm.pp.ua/fullchain.pem:/certs/fullchain.pem:ro
       - /etc/letsencrypt/live/soundstorm.pp.ua/privkey.pem:/certs/privkey.pem:ro
-
