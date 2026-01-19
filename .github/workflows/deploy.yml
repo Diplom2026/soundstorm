@@ -76,6 +76,9 @@ jobs:
       - name: Pull new image
         run: docker compose pull
 
+      - name: Stop old containers
+        run: docker compose down --remove-orphans
+
       - name: Deploy new version
         run: docker compose up -d
 
