@@ -73,18 +73,15 @@ jobs:
 
       - name: Show working directory and contents
         run: |
-          echo "Current directory:"
+          echo "=== CURRENT DIRECTORY ==="
           pwd
-          echo "Listing contents:"
+          echo "=== FILES HERE ==="
           ls -la
 
-      - name: Verify docker-compose.yml exists
+      - name: Show docker-compose.yml used by deploy
         run: |
-          if [ ! -f docker-compose.yml ]; then
-            echo "❌ docker-compose.yml not found in current directory"
-            exit 1
-          fi
-          echo "✅ docker-compose.yml found"
+          echo "=== docker-compose.yml CONTENT ==="
+          cat docker-compose.yml || echo "❌ docker-compose.yml NOT FOUND"
 
       - name: Pull new image
         run: docker compose pull
