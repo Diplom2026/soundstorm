@@ -79,27 +79,27 @@ jobs:
           pwd
           echo "Listing contents:"
           ls -la
-          echo "Listing repo folder:"
-          ls -la repo
+          echo "Listing soundstorm/repo folder:"
+          ls -la soundstorm/repo
 
       - name: Verify docker-compose.yml exists
         run: |
-          if [ ! -f repo/docker-compose.yml ]; then
-            echo "❌ docker-compose.yml not found in repo/"
+          if [ ! -f soundstorm/repo/docker-compose.yml ]; then
+            echo "❌ docker-compose.yml not found in soundstorm/repo/"
             exit 1
           fi
           echo "✅ docker-compose.yml found"
 
       - name: Pull new image
-        working-directory: repo
+        working-directory: soundstorm/repo
         run: docker compose pull
 
       - name: Stop old containers
-        working-directory: repo
+        working-directory: soundstorm/repo
         run: docker compose down --remove-orphans
 
       - name: Deploy new version
-        working-directory: repo
+        working-directory: soundstorm/repo
         run: docker compose up -d
 
       - name: Health check
