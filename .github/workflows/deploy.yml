@@ -73,6 +73,23 @@ jobs:
         with:
           path: soundstorm
 
+      - name: Show working directory and contents
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "Listing contents:"
+          ls -la
+          echo "Listing soundstorm folder:"
+          ls -la soundstorm
+
+      - name: Verify docker-compose.yml exists
+        run: |
+          if [ ! -f soundstorm/docker-compose.yml ]; then
+            echo "❌ docker-compose.yml not found in soundstorm/"
+            exit 1
+          fi
+          echo "✅ docker-compose.yml found"
+
       - name: Pull new image
         working-directory: soundstorm
         run: docker compose pull
