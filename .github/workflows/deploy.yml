@@ -70,8 +70,6 @@ jobs:
     steps:
       - name: Checkout repo on VM
         uses: actions/checkout@v4
-        with:
-          path: repo
 
       - name: Show working directory and contents
         run: |
@@ -79,8 +77,6 @@ jobs:
           pwd
           echo "Listing contents:"
           ls -la
-          echo "Listing repo folder:"
-          ls -la repo
 
       - name: Verify docker-compose.yml exists
         run: |
