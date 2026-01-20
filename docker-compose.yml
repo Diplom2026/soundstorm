@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   soundstorm:
     image: xxvladxx/soundstorm:latest
