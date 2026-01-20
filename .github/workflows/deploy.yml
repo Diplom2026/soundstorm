@@ -65,7 +65,11 @@ jobs:
 
   deploy:
     runs-on: self-hosted
-    needs: build-and-push
+    needs:
+      - bump-version
+      - build-and-push
+    env:
+      IMAGE_TAG: ${{ needs.bump-version.outputs.new_tag }}
 
     steps:
       - name: Checkout repo on VM
@@ -83,6 +87,15 @@ jobs:
           echo "=== docker-compose.yml CONTENT ==="
           cat docker-compose.yml || echo "❌ docker-compose.yml NOT FOUND"
 
+      - name: Create .env file for docker-compose
+        run: |
+          echo "IMAGE_TAG=${IMAGE_TAG}" > .env
+          echo "=== .env CONTENT ==="
+          cat .env
+
+      - name: Prune Docker system
+        run: docker system prune -af --volumes
+
       - name: Pull new image
         run: docker compose pull
 
@@ -90,7 +103,7 @@ jobs:
         run: docker compose down --remove-orphans
 
       - name: Deploy new version
-        run: docker compose up -d
+        run: docker compose up -d --force-recreate
 
       - name: Health check
         run: |
