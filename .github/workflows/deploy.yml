@@ -71,7 +71,7 @@ jobs:
       - name: Checkout repo on VM
         uses: actions/checkout@v4
         with:
-          path: soundstorm
+          path: repo
 
       - name: Show working directory and contents
         run: |
@@ -79,27 +79,27 @@ jobs:
           pwd
           echo "Listing contents:"
           ls -la
-          echo "Listing soundstorm folder:"
-          ls -la soundstorm
+          echo "Listing repo folder:"
+          ls -la repo
 
       - name: Verify docker-compose.yml exists
         run: |
-          if [ ! -f soundstorm/docker-compose.yml ]; then
-            echo "❌ docker-compose.yml not found in soundstorm/"
+          if [ ! -f repo/docker-compose.yml ]; then
+            echo "❌ docker-compose.yml not found in repo/"
             exit 1
           fi
           echo "✅ docker-compose.yml found"
 
       - name: Pull new image
-        working-directory: soundstorm
+        working-directory: repo
         run: docker compose pull
 
       - name: Stop old containers
-        working-directory: soundstorm
+        working-directory: repo
         run: docker compose down --remove-orphans
 
       - name: Deploy new version
-        working-directory: soundstorm
+        working-directory: repo
         run: docker compose up -d
 
       - name: Health check
