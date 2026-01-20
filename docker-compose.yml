@@ -1,6 +1,8 @@
+version: "3.9"
+
 services:
   soundstorm:
-    image: xxvladxx/soundstorm:latest
+    image: xxvladxx/soundstorm:${IMAGE_TAG}
     container_name: soundstorm
     restart: always
 
@@ -9,5 +11,11 @@ services:
       - "443:443"
 
     volumes:
+      # Real certs on your VM → inside container at /certs/
       - /etc/letsencrypt/live/soundstorm.pp.ua/fullchain.pem:/certs/fullchain.pem:ro
       - /etc/letsencrypt/live/soundstorm.pp.ua/privkey.pem:/certs/privkey.pem:ro
+
+    # Optional but recommended: ensure container restarts after reboot
+    deploy:
+      restart_policy:
+        condition: always
