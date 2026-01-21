@@ -56,7 +56,6 @@ jobs:
 
           ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }} << 'EOF'
 set -e
-
 echo "Stopping old container..."
 docker stop soundstorm || true
 docker rm soundstorm || true
