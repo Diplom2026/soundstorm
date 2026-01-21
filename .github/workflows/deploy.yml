@@ -9,15 +9,15 @@ jobs:
   bump-version:
     runs-on: ubuntu-latest
     outputs:
-      new_tag: ${{ steps.bump.outputs.new_tag }}
+      new_tag: ${{ steps.read.outputs.new_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Bump version
-        id: bump
+      - name: Read VERSION file
+        id: read
         run: |
-          TAG=$(date +'%Y%m%d%H%M%S')
+          TAG=$(cat VERSION)
           echo "new_tag=$TAG" >> $GITHUB_OUTPUT
 
   build-and-push:
@@ -54,25 +54,25 @@ jobs:
         run: |
           IMAGE="${{ secrets.DOCKERHUB_REPO }}:${{ needs.bump-version.outputs.new_tag }}"
 
-          ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }} << EOF
-            set -e
+          ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }} <<EOF
+set -e
 
-            echo "Stopping old container..."
-            docker stop soundstorm || true
-            docker rm soundstorm || true
+echo "Stopping old container..."
+docker stop soundstorm || true
+docker rm soundstorm || true
 
-            echo "Pulling new image..."
-            docker pull $IMAGE
+echo "Pulling new image..."
+docker pull $IMAGE
 
-            echo "Starting new container..."
-            docker run -d \
-              --name soundstorm \
-              --restart always \
-              -p 80:80 \
-              -p 443:443 \
-              -v /etc/letsencrypt/live/soundstorm.pp.ua/fullchain.pem:/certs/fullchain.pem:ro \
-              -v /etc/letsencrypt/live/soundstorm.pp.ua/privkey.pem:/certs/privkey.pem:ro \
-              $IMAGE
+echo "Starting new container..."
+docker run -d \
+  --name soundstorm \
+  --restart always \
+  -p 80:80 \
+  -p 443:443 \
+  -v /etc/letsencrypt/live/soundstorm.pp.ua/fullchain.pem:/certs/fullchain.pem:ro \
+  -v /etc/letsencrypt/live/soundstorm.pp.ua/privkey.pem:/certs/privkey.pem:ro \
+  $IMAGE
 
-            echo "Deployment complete."
+echo "Deployment complete."
 EOF
