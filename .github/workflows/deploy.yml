@@ -3,7 +3,7 @@ name: Deploy to AWS
 on:
   push:
     branches:
-      - main
+      - pipeline-setup
 
 jobs:
   bump-version:
@@ -76,3 +76,4 @@ jobs:
 
             echo "Deployment complete."
           EOF
+
