@@ -6,10 +6,8 @@ on:
       - pipeline-setup
 
 jobs:
-  bump-version:
+  build-and-push:
     runs-on: ubuntu-latest
-    outputs:
-      now_tag: ${{ steps.read.outputs.now_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,14 +16,7 @@ jobs:
         id: read
         run: |
           TAG=$(tr -d '\n\r ' < VERSION)
-          echo "now_tag=$TAG" >> $GITHUB_OUTPUT
-
-  build-and-push:
-    runs-on: ubuntu-latest
-    needs: bump-version
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+          echo "TAG=$TAG" >> $GITHUB_ENV
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -35,37 +26,46 @@ jobs:
 
       - name: Build image
         run: |
-          docker build -t ${{ secrets.DOCKERHUB_REPO }}:${{ needs.bump-version.outputs.now_tag }} .
+          docker build -t ${{ secrets.DOCKERHUB_REPO }}:${{ env.TAG }} .
 
       - name: Push image
         run: |
-          docker push ${{ secrets.DOCKERHUB_REPO }}:${{ needs.bump-version.outputs.now_tag }}
+          docker push ${{ secrets.DOCKERHUB_REPO }}:${{ env.TAG }}
 
   deploy:
     runs-on: ubuntu-latest
     needs: build-and-push
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read VERSION file
+        id: read
+        run: |
+          TAG=$(tr -d '\n\r ' < VERSION)
+          echo "TAG=$TAG" >> $GITHUB_ENV
+
       - name: Install SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.VM_SSH_KEY }}
 
       - name: Debug tag
-        run: echo "TAG = '${{ needs.bump-version.outputs.now_tag }}'"
+        run: echo "TAG = '${{ env.TAG }}'"
 
       - name: Deploy to AWS VM
         run: |
+          IMAGE="${{ secrets.DOCKERHUB_REPO }}:${{ env.TAG }}"
+
           ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }} "
             set -e
-
-            IMAGE='${{ secrets.DOCKERHUB_REPO }}:${{ needs.bump-version.outputs.now_tag }}'
 
             echo 'Stopping old container...'
             docker stop soundstorm || true
             docker rm soundstorm || true
 
             echo 'Pulling new image...'
-            docker pull \$IMAGE
+            docker pull $IMAGE
 
             echo 'Starting new container...'
             docker run -d \
@@ -75,7 +75,7 @@ jobs:
               -p 443:443 \
               -v /etc/letsencrypt/live/soundstorm.pp.ua/fullchain.pem:/certs/fullchain.pem:ro \
               -v /etc/letsencrypt/live/soundstorm.pp.ua/privkey.pem:/certs/privkey.pem:ro \
-              \$IMAGE
+              $IMAGE
 
             echo 'Deployment complete.'
           "
