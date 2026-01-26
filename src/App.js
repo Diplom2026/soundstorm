@@ -646,10 +646,15 @@ const initializeCollections = () => {
       <div className="auth-container">
         <div className="auth-box">
          <div className="auth-header">
-             <Logo size={64} />
-             <h1>SoundStorm</h1>
-             <p>Music for everyone</p>
-           </div>
+  <Logo size={58} />
+  <div>
+    <h1>
+      <span className="sound-text">Sound</span>
+      <span className="storm-text">Storm</span>
+    </h1>
+  </div>
+</div>
+<p style={{textAlign: 'center', margin: '0 0 40px 0', color: '#b3b3b3', fontSize: '16px', fontWeight: 'bold'}}>Music for everyone</p>
 
           {!showRegister ? (
             <div className="auth-form">
@@ -873,10 +878,13 @@ TrackRow.displayName = 'TrackRow';
     <div className="app">
       <div className="main-container">
         <div className="sidebar">
-          <div className="sidebar-header"onClick={() => setCurrentView('home')} style={{cursor: 'pointer'}}>
-            <Logo size={48} />
-            <h1>SoundStorm</h1>
-          </div>
+          <div className="sidebar-header" onClick={() => setCurrentView('home')} style={{cursor: 'pointer'}}>
+  <Logo size={48} />
+  <h1>
+    <span style={{color: '#1db954'}}>Sound</span>
+    <span style={{color: '#fff'}}>Storm</span>
+  </h1>
+</div>
 
           <nav className="sidebar-nav">
             <button onClick={() => setCurrentView('home')} className={currentView === 'home' ? 'active' : ''}>
@@ -1173,7 +1181,7 @@ TrackRow.displayName = 'TrackRow';
 
             {currentView === 'albums' && (
   <div>
-    <h2>Collections</h2>
+    <h2>Albums</h2>
     <div className="collections-grid">
       {collections.map(collection => (
         <div 
@@ -1199,7 +1207,7 @@ TrackRow.displayName = 'TrackRow';
       onClick={() => setCurrentView('albums')} 
       className="back-button"
     >
-      ← Back to Collections
+      ← Back to Albums
     </button>
     <div className="collection-header" style={{ background: selectedCollection.color }}>
       <div className="collection-header-content">
