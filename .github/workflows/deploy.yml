@@ -1,13 +1,10 @@
-name: Deploy and Scan
+name: Safe Deploy
 
 on:
-  push:
-    branches:
-      - pipeline-setup
+  workflow_dispatch:
 
 jobs:
   deploy:
-    name: Deploy to VM and Run ZAP Scan
     runs-on: ubuntu-latest
 
     steps:
@@ -19,41 +16,20 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.VM_SSH_KEY }}
 
-      - name: Copy project to VM
+      - name: Sync project to VM
         run: |
           rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" ./ \
             ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }}:/home/${{ secrets.VM_USERNAME }}/soundstorm
 
-      - name: Build and restart container on VM
+      - name: Restart container
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }} "
             cd /home/${{ secrets.VM_USERNAME }}/soundstorm &&
-            docker build -t ${{ secrets.DOCKERHUB_REPO }}:\$(cat VERSION) . &&
             docker stop soundstorm || true &&
             docker rm soundstorm || true &&
+            docker build -t soundstorm:latest . &&
             docker run -d --name soundstorm \
               -p 80:80 -p 443:443 \
               -v /home/${{ secrets.VM_USERNAME }}/certs:/certs \
-              ${{ secrets.DOCKERHUB_REPO }}:\$(cat VERSION)
+              soundstorm:latest
           "
-
-      - name: Run OWASP ZAP Baseline Scan
-        run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }} "
-            mkdir -p /home/${{ secrets.VM_USERNAME }}/zap-reports &&
-            docker run --rm \
-              -v /home/${{ secrets.VM_USERNAME }}/zap-reports:/zap/wrk \
-              ghcr.io/zaproxy/zaproxy:weekly \
-              zap-baseline.py -t https://soundstorm.pp.ua -r zap-baseline-report.html
-          "
-
-      - name: Download ZAP report
-        run: |
-          scp -o StrictHostKeyChecking=no \
-            ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }}:/home/${{ secrets.VM_USERNAME }}/zap-reports/zap-baseline-report.html .
-
-      - name: Upload ZAP Baseline Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: zap-baseline-report
-          path: zap-baseline-report.html
