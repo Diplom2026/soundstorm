@@ -91,12 +91,12 @@ jobs:
             ghcr.io/zaproxy/zaproxy:weekly \
             zap-baseline.py \
               -t https://soundstorm.pp.ua \
-              -r /zap/reports/zap-passive-report.html
+              -r zap-passive-report.html
 
       - name: Copy report from container output
         run: |
           CONTAINER_ID=$(docker create ghcr.io/zaproxy/zaproxy:weekly)
-          docker cp $CONTAINER_ID:/zap/reports/zap-passive-report.html ./zap-passive-report.html || true
+          docker cp $CONTAINER_ID:/zap/zap-passive-report.html ./zap-passive-report.html || true
           docker rm $CONTAINER_ID
 
       - name: Upload Passive Scan Report
