@@ -1,35 +1,72 @@
-name: Safe Deploy
+name: Deploy to AWS
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - pipeline-setup
 
 jobs:
-  deploy:
+  build-and-push:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up SSH key
-        uses: webfactory/ssh-agent@v0.8.0
+      - name: Read VERSION file
+        id: read
+        run: |
+          TAG=$(tr -d '\n\r ' < VERSION)
+          echo "TAG=$TAG" >> $GITHUB_ENV
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build image
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_REPO }}:${{ env.TAG }} .
+      - name: Push image
+        run: |
+          docker push ${{ secrets.DOCKERHUB_REPO }}:${{ env.TAG }}
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read VERSION file
+        id: read
+        run: |
+          TAG=$(tr -d '\n\r ' < VERSION)
+          echo "TAG=$TAG" >> $GITHUB_ENV
+      - name: Install SSH key
+        uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.VM_SSH_KEY }}
 
-      - name: Sync project to VM
-        run: |
-          rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" ./ \
-            ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }}:/home/${{ secrets.VM_USERNAME }}/soundstorm
+      - name: Debug tag
+        run: echo "TAG = '${{ env.TAG }}'"
 
-      - name: Restart container
+      - name: Deploy to AWS VM
         run: |
+          IMAGE="${{ secrets.DOCKERHUB_REPO }}:${{ env.TAG }}"
           ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }} "
-            cd /home/${{ secrets.VM_USERNAME }}/soundstorm &&
-            docker stop soundstorm || true &&
-            docker rm soundstorm || true &&
-            docker build -t soundstorm:latest . &&
-            docker run -d --name soundstorm \
-              -p 80:80 -p 443:443 \
-              -v /home/${{ secrets.VM_USERNAME }}/certs:/certs \
-              soundstorm:latest
+            set -e
+            echo 'Stopping old container...'
+            docker stop soundstorm || true
+            docker rm soundstorm || true
+            echo 'Pulling new image...'
+            docker pull $IMAGE
+            echo 'Starting new container...'
+            docker run -d \
+              --name soundstorm \
+              --restart always \
+              -p 80:80 \
+              -p 443:443 \
+              -v /etc/letsencrypt/live/soundstorm.pp.ua/fullchain.pem:/certs/fullchain.pem:ro \
+              -v /etc/letsencrypt/live/soundstorm.pp.ua/privkey.pem:/certs/privkey.pem:ro \
+              $IMAGE
+            echo 'Deployment complete.'
           "
