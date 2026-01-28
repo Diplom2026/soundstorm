@@ -7,7 +7,7 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to EC2 and Run ZAP Scan
+    name: Deploy to VM and Run ZAP Scan
     runs-on: ubuntu-latest
 
     steps:
@@ -19,21 +19,25 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.VM_SSH_KEY }}
 
-      - name: Copy files to EC2
+      - name: Copy project to VM
         run: |
-          rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" ./ ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }}:/home/${{ secrets.VM_USERNAME }}/soundstorm
+          rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" ./ \
+            ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }}:/home/${{ secrets.VM_USERNAME }}/soundstorm
 
-      - name: Trigger remote build and deploy
+      - name: Build and restart container on VM
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }} "
             cd /home/${{ secrets.VM_USERNAME }}/soundstorm &&
             docker build -t ${{ secrets.DOCKERHUB_REPO }}:\$(cat VERSION) . &&
             docker stop soundstorm || true &&
             docker rm soundstorm || true &&
-            docker run -d --name soundstorm -p 80:80 -p 443:443 ${{ secrets.DOCKERHUB_REPO }}:\$(cat VERSION)
+            docker run -d --name soundstorm \
+              -p 80:80 -p 443:443 \
+              -v /home/${{ secrets.VM_USERNAME }}/certs:/certs \
+              ${{ secrets.DOCKERHUB_REPO }}:\$(cat VERSION)
           "
 
-      - name: Run OWASP ZAP Baseline Scan on EC2
+      - name: Run OWASP ZAP Baseline Scan
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }} "
             docker run --rm \
@@ -42,9 +46,10 @@ jobs:
               zap-baseline.py -t https://soundstorm.pp.ua -r zap-baseline-report.html
           "
 
-      - name: Download ZAP report from EC2
+      - name: Download ZAP report
         run: |
-          scp -o StrictHostKeyChecking=no ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }}:/home/${{ secrets.VM_USERNAME }}/zap-reports/zap-baseline-report.html .
+          scp -o StrictHostKeyChecking=no \
+            ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }}:/home/${{ secrets.VM_USERNAME }}/zap-reports/zap-baseline-report.html .
 
       - name: Upload ZAP Baseline Report
         uses: actions/upload-artifact@v4
