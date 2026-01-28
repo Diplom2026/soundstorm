@@ -1,14 +1,12 @@
 
 # SoundStorm
 
-Это учебный проект для освоения DevOps и GitHub.  
-Здесь будет развиваться система обработки звука.
+learning project to create website about music
 
-## Команда
-- Влад (DevOps)
-- Остальные участники — скоро присоединятся!
+## Team
+- midxer WhicherUA (DevOps)
+- devs
 
-## Цели проекта
-- Настроить CI/CD
-- Защитить ветку main
-- Научиться работать с pull requests
+## Project goals
+- Set Up  CI/CD
+- make website with devs 
