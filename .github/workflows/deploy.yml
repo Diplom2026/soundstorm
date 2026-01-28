@@ -17,6 +17,7 @@ jobs:
         run: |
           TAG=$(tr -d '\n\r ' < VERSION)
           echo "TAG=$TAG" >> $GITHUB_ENV
+
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -24,11 +25,11 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build image
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_REPO }}:${{ env.TAG }} .
+        run: docker build -t ${{ secrets.DOCKERHUB_REPO }}:${{ env.TAG }} .
+
       - name: Push image
-        run: |
-          docker push ${{ secrets.DOCKERHUB_REPO }}:${{ env.TAG }}
+        run: docker push ${{ secrets.DOCKERHUB_REPO }}:${{ env.TAG }}
+
   deploy:
     runs-on: ubuntu-latest
     needs: build-and-push
@@ -41,6 +42,7 @@ jobs:
         run: |
           TAG=$(tr -d '\n\r ' < VERSION)
           echo "TAG=$TAG" >> $GITHUB_ENV
+
       - name: Install SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
@@ -70,3 +72,24 @@ jobs:
               $IMAGE
             echo 'Deployment complete.'
           "
+
+  passive_scan:
+    name: Passive Security Scan (ZAP Baseline)
+    runs-on: ubuntu-latest
+    needs: deploy
+
+    steps:
+      - name: Run ZAP Baseline Scan
+        run: |
+          docker run --rm \
+            -v $(pwd):/zap/wrk \
+            ghcr.io/zaproxy/zaproxy:weekly \
+            zap-baseline.py \
+              -t https://soundstorm.pp.ua \
+              -r zap-passive-report.html
+
+      - name: Upload Passive Scan Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-passive-report
+          path: zap-passive-report.html
