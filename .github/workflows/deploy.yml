@@ -40,6 +40,7 @@ jobs:
       - name: Run OWASP ZAP Baseline Scan
         run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }} "
+            mkdir -p /home/${{ secrets.VM_USERNAME }}/zap-reports &&
             docker run --rm \
               -v /home/${{ secrets.VM_USERNAME }}/zap-reports:/zap/wrk \
               ghcr.io/zaproxy/zaproxy:weekly \
