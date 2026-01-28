@@ -1,4 +1,4 @@
-name: Deploy to AWS
+name: Deploy and Scan
 
 on:
   push:
@@ -6,76 +6,48 @@ on:
       - pipeline-setup
 
 jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Read VERSION file
-        id: read
-        run: |
-          TAG=$(tr -d '\n\r ' < VERSION)
-          echo "TAG=$TAG" >> $GITHUB_ENV
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build image
-        run: |
-          docker build -t ${{ secrets.DOCKERHUB_REPO }}:${{ env.TAG }} .
-
-      - name: Push image
-        run: |
-          docker push ${{ secrets.DOCKERHUB_REPO }}:${{ env.TAG }}
-
   deploy:
+    name: Deploy to EC2 and Run ZAP Scan
     runs-on: ubuntu-latest
-    needs: build-and-push
+
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Read VERSION file
-        id: read
-        run: |
-          TAG=$(tr -d '\n\r ' < VERSION)
-          echo "TAG=$TAG" >> $GITHUB_ENV
-
-      - name: Install SSH key
-        uses: webfactory/ssh-agent@v0.9.0
+      - name: Set up SSH key
+        uses: webfactory/ssh-agent@v0.8.0
         with:
           ssh-private-key: ${{ secrets.VM_SSH_KEY }}
 
-      - name: Debug tag
-        run: echo "TAG = '${{ env.TAG }}'"
-
-      - name: Deploy to AWS VM
+      - name: Copy files to EC2
         run: |
-          IMAGE="${{ secrets.DOCKERHUB_REPO }}:${{ env.TAG }}"
+          rsync -avz --delete -e "ssh -o StrictHostKeyChecking=no" ./ ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }}:/home/${{ secrets.VM_USERNAME }}/soundstorm
 
+      - name: Trigger remote build and deploy
+        run: |
           ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }} "
-            set -e
-
-            echo 'Stopping old container...'
-            docker stop soundstorm || true
-            docker rm soundstorm || true
-
-            echo 'Pulling new image...'
-            docker pull $IMAGE
-
-            echo 'Starting new container...'
-            docker run -d \
-              --name soundstorm \
-              --restart always \
-              -p 80:80 \
-              -p 443:443 \
-              -v /etc/letsencrypt/live/soundstorm.pp.ua/fullchain.pem:/certs/fullchain.pem:ro \
-              -v /etc/letsencrypt/live/soundstorm.pp.ua/privkey.pem:/certs/privkey.pem:ro \
-              $IMAGE
-
-            echo 'Deployment complete.'
+            cd /home/${{ secrets.VM_USERNAME }}/soundstorm &&
+            docker build -t ${{ secrets.DOCKERHUB_REPO }}:\$(cat VERSION) . &&
+            docker stop soundstorm || true &&
+            docker rm soundstorm || true &&
+            docker run -d --name soundstorm -p 80:80 -p 443:443 ${{ secrets.DOCKERHUB_REPO }}:\$(cat VERSION)
           "
+
+      - name: Run OWASP ZAP Baseline Scan on EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }} "
+            docker run --rm \
+              -v /home/${{ secrets.VM_USERNAME }}/zap-reports:/zap/wrk \
+              ghcr.io/zaproxy/zaproxy:weekly \
+              zap-baseline.py -t https://soundstorm.pp.ua -r zap-baseline-report.html
+          "
+
+      - name: Download ZAP report from EC2
+        run: |
+          scp -o StrictHostKeyChecking=no ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }}:/home/${{ secrets.VM_USERNAME }}/zap-reports/zap-baseline-report.html .
+
+      - name: Upload ZAP Baseline Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-baseline-report
+          path: zap-baseline-report.html
