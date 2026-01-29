@@ -87,15 +87,15 @@ jobs:
       - name: Run ZAP Baseline Scan
         run: |
           docker run --name zap-scan --rm \
-            ghcr.io/zaproxy/zaproxy:weekly \
+            ghcr.io/zaproxy/zaproxy:stable \
             zap-baseline.py \
               --autooff \
               -t https://soundstorm.pp.ua \
-              -r zap-passive-report.html
+              -r /zap/zap-passive-report.html
 
       - name: Copy report from container output
         run: |
-          docker cp zap-scan:/zap/zap-passive-report.html ./zap-passive-report.html || true
+          docker cp zap-scan:/zap/zap-passive-report.html ./zap-passive-report.html
 
       - name: Upload Passive Scan Report
         uses: actions/upload-artifact@v4
