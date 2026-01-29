@@ -89,7 +89,12 @@ jobs:
           docker run -d --name zap-daemon \
             -p 8080:8080 \
             ghcr.io/zaproxy/zaproxy:stable \
-            zap.sh -daemon -port 8080 -host 0.0.0.0 -config api.disablekey=true
+            zap.sh -daemon \
+              -port 8080 \
+              -host 0.0.0.0 \
+              -config api.disablekey=true \
+              -config api.addrs.addr.name=.* \
+              -config api.addrs.addr.regex=true
 
       - name: Wait for ZAP to start
         run: |
