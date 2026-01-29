@@ -50,22 +50,16 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.VM_SSH_KEY }}
 
-      - name: Debug tag
-        run: echo "TAG = '${{ env.TAG }}'"
-
       - name: Deploy to AWS VM
         run: |
           IMAGE="${{ secrets.DOCKERHUB_REPO }}:${{ env.TAG }}"
           ssh -o StrictHostKeyChecking=no ${{ secrets.VM_USERNAME }}@${{ secrets.VM_HOST }} "
             set -e
-            echo 'Stopping old container...'
             docker stop soundstorm || true
             docker rm soundstorm || true
 
-            echo 'Pulling new image...'
             docker pull $IMAGE
 
-            echo 'Starting new container...'
             docker run -d \
               --name soundstorm \
               --restart always \
@@ -74,8 +68,6 @@ jobs:
               -v /etc/letsencrypt/live/soundstorm.pp.ua/fullchain.pem:/certs/fullchain.pem:ro \
               -v /etc/letsencrypt/live/soundstorm.pp.ua/privkey.pem:/certs/privkey.pem:ro \
               $IMAGE
-
-            echo 'Deployment complete.'
           "
 
   scan-full:
@@ -140,3 +132,50 @@ jobs:
         with:
           name: zap-full-report
           path: zap-full-report.html
+
+  monitor:
+    name: Monitoring Check
+    runs-on: ubuntu-latest
+    needs: scan-full
+
+    steps:
+      - name: Check site uptime
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://soundstorm.pp.ua)
+          echo "HTTP Status: $STATUS" > monitor-report.txt
+          if [ "$STATUS" != "200" ]; then
+            echo "Site is DOWN or unhealthy" >> monitor-report.txt
+            exit 1
+          fi
+
+      - name: Check SSL certificate expiration
+        run: |
+          EXPIRY=$(echo | openssl s_client -connect soundstorm.pp.ua:443 -servername soundstorm.pp.ua 2>/dev/null | openssl x509 -noout -enddate | cut -d= -f2)
+          EXPIRY_TS=$(date -d "$EXPIRY" +%s)
+          NOW_TS=$(date +%s)
+          DAYS_LEFT=$(( (EXPIRY_TS - NOW_TS) / 86400 ))
+          echo "SSL expires in $DAYS_LEFT days" >> monitor-report.txt
+          if [ "$DAYS_LEFT" -lt 15 ]; then
+            echo "SSL certificate is expiring soon!" >> monitor-report.txt
+            exit 1
+          fi
+
+      - name: Check container health
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USERNAME }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            if docker ps --filter "name=soundstorm" --filter "status=running" --format "{{.Names}}" | grep -q soundstorm; then
+              echo "Container is running" >> monitor-report.txt
+            else
+              echo "Container is NOT running!" >> monitor-report.txt
+              exit 1
+            fi
+
+      - name: Upload Monitoring Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitor-report
+          path: monitor-report.txt
