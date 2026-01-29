@@ -79,22 +79,56 @@ jobs:
           "
 
   scan-full:
-    name: Full Security Scan (ZAP Full Scan)
+    name: Full Security Scan (ZAP Daemon Mode)
     runs-on: ubuntu-latest
     needs: deploy
 
     steps:
-      - name: Run ZAP Full Scan
+      - name: Start ZAP in daemon mode
         run: |
-          docker run --name zap-scan --rm \
+          docker run -d --name zap-daemon \
+            -p 8080:8080 \
             ghcr.io/zaproxy/zaproxy:stable \
-            zap-full-scan.py \
-              -t https://soundstorm.pp.ua \
-              -r /zap/zap-full-report.html
+            zap.sh -daemon -port 8080 -host 0.0.0.0 -config api.disablekey=true
 
-      - name: Copy report from container
+      - name: Wait for ZAP to start
         run: |
-          docker cp zap-scan:/zap/zap-full-report.html ./zap-full-report.html
+          for i in {1..30}; do
+            if curl -s http://localhost:8080/JSON/core/view/version/ > /dev/null; then
+              echo "ZAP is ready"
+              break
+            fi
+            echo "Waiting for ZAP..."
+            sleep 5
+          done
+
+      - name: Spider the target
+        run: |
+          curl "http://localhost:8080/JSON/spider/action/scan/?url=https://soundstorm.pp.ua"
+          sleep 10
+
+      - name: Wait for spider to finish
+        run: |
+          while [ "$(curl -s http://localhost:8080/JSON/spider/view/status/ | jq -r '.status')" != "100" ]; do
+            echo "Spider running..."
+            sleep 5
+          done
+
+      - name: Active scan
+        run: |
+          curl "http://localhost:8080/JSON/ascan/action/scan/?url=https://soundstorm.pp.ua"
+          sleep 10
+
+      - name: Wait for active scan to finish
+        run: |
+          while [ "$(curl -s http://localhost:8080/JSON/ascan/view/status/ | jq -r '.status')" != "100" ]; do
+            echo "Active scan running..."
+            sleep 5
+          done
+
+      - name: Generate HTML report
+        run: |
+          curl "http://localhost:8080/OTHER/core/other/htmlreport/" -o zap-full-report.html
 
       - name: Upload Full Scan Report
         uses: actions/upload-artifact@v4
