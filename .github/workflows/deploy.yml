@@ -89,6 +89,7 @@ jobs:
           docker run --name zap-scan --rm \
             ghcr.io/zaproxy/zaproxy:weekly \
             zap-baseline.py \
+              --autooff \
               -t https://soundstorm.pp.ua \
               -r zap-passive-report.html
 
