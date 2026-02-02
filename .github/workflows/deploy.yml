@@ -134,19 +134,27 @@ jobs:
           path: zap-full-report.html
 
   monitor:
-    name: Monitoring Check
+    name: Advanced Monitoring Check
     runs-on: ubuntu-latest
     needs: scan-full
 
     steps:
+      - name: Create report file
+        run: echo "=== ADVANCED MONITORING REPORT ===" > monitor-report.txt
+
       - name: Check site uptime
         run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://soundstorm.pp.ua)
-          echo "HTTP Status: $STATUS" > monitor-report.txt
+          echo "HTTP Status: $STATUS" >> monitor-report.txt
           if [ "$STATUS" != "200" ]; then
             echo "Site is DOWN or unhealthy" >> monitor-report.txt
             exit 1
           fi
+
+      - name: Measure response time
+        run: |
+          TIME=$(curl -o /dev/null -s -w "%{time_total}" https://soundstorm.pp.ua)
+          echo "Response Time: ${TIME}s" >> monitor-report.txt
 
       - name: Check SSL certificate expiration
         run: |
@@ -160,22 +168,33 @@ jobs:
             exit 1
           fi
 
-      - name: Check container health
+      - name: Check VM system metrics
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.VM_HOST }}
           username: ${{ secrets.VM_USERNAME }}
           key: ${{ secrets.VM_SSH_KEY }}
           script: |
-            if docker ps --filter "name=soundstorm" --filter "status=running" --format "{{.Names}}" | grep -q soundstorm; then
-              echo "Container is running" >> monitor-report.txt
-            else
-              echo "Container is NOT running!" >> monitor-report.txt
-              exit 1
-            fi
+            echo "--- CPU Usage ---" >> monitor-report.txt
+            top -bn1 | grep "Cpu(s)" >> monitor-report.txt
+
+            echo "--- RAM Usage ---" >> monitor-report.txt
+            free -h >> monitor-report.txt
+
+            echo "--- Disk Usage ---" >> monitor-report.txt
+            df -h / >> monitor-report.txt
+
+            echo "--- Docker Container Status ---" >> monitor-report.txt
+            docker ps --filter "name=soundstorm" >> monitor-report.txt
+
+            echo "--- Docker Restart Count ---" >> monitor-report.txt
+            docker inspect -f '{{ .RestartCount }}' soundstorm >> monitor-report.txt
+
+            echo "--- Nginx Error Log (last 20 lines) ---" >> monitor-report.txt
+            tail -n 20 /var/log/nginx/error.log >> monitor-report.txt || echo "No error log found" >> monitor-report.txt
 
       - name: Upload Monitoring Report
         uses: actions/upload-artifact@v4
         with:
-          name: monitor-report
+          name: advanced-monitor-report
           path: monitor-report.txt
