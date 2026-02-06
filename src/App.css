@@ -1607,7 +1607,7 @@ body {
   align-items: center;
   gap: 12px;
   padding: 10px 20px;
-  background: #282828;
+  background: #117d37;
   border: none;
   border-radius: 6px;
   color: #fff;
@@ -1619,7 +1619,7 @@ body {
 }
 
 .header-profile-btn:hover {
-  background: #333333;
+  background: #055b23;
   transform: scale(1.05);
 }
 
