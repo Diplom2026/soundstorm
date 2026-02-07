@@ -2151,3 +2151,100 @@ body {
   transform: scale(1.05);
   box-shadow: 0 4px 12px rgba(29, 185, 84, 0.4);
 }
+
+/* DOWNGRADE MODAL */
+.downgrade-modal {
+  background: #282828;
+  padding: 32px;
+  border-radius: 12px;
+  max-width: 500px;
+  width: 90%;
+  border: 1px solid #ff4444;
+}
+
+.downgrade-modal h3 {
+  font-size: 24px;
+  margin-bottom: 16px;
+  color: #fff;
+}
+
+.downgrade-modal p {
+  color: #b3b3b3;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.downgrade-features {
+  background: #1a1a1a;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  border-left: 3px solid #ff4444;
+}
+
+.downgrade-features p {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ff4444;
+  margin-bottom: 12px;
+}
+
+.downgrade-features ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.downgrade-features li {
+  padding: 6px 0;
+  color: #b3b3b3;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.downgrade-features li::before {
+  content: '✗';
+  color: #ff4444;
+  font-weight: bold;
+}
+
+.downgrade-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}
+
+.btn-downgrade-cancel {
+  padding: 12px 24px;
+  background: #282828;
+  color: #fff;
+  border: 1px solid #404040;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-downgrade-cancel:hover {
+  background: #404040;
+  border-color: #fff;
+}
+
+.btn-downgrade-confirm {
+  padding: 12px 24px;
+  background: #ff4444;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-downgrade-confirm:hover {
+  background: #ff6666;
+}

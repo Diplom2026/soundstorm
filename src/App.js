@@ -49,6 +49,7 @@ const SoundStorm = () => {
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successTxHash, setSuccessTxHash] = useState('');
+  const [showDowngradeModal, setShowDowngradeModal] = useState(false);
   const [showDeletePlaylistModal, setShowDeletePlaylistModal] = useState(false);
   const [playlistToDelete, setPlaylistToDelete] = useState(null);
   const audioRef = useRef(null);
@@ -1650,9 +1651,12 @@ TrackRow.displayName = 'TrackRow';
           {currentSubscription === 'free' ? (
             <button className="plan-button active-plan" disabled>Active</button>
           ) : (
-            <button className="plan-button" onClick={() => handlePurchaseSubscription('free')}>
-              Downgrade to Free
-            </button>
+            <button className="plan-button" onClick={() => {
+  setShowPremiumModal(false);
+  setShowDowngradeModal(true);
+}}>
+  Downgrade to Free
+</button>
           )}
         </div>
 
@@ -1747,6 +1751,44 @@ TrackRow.displayName = 'TrackRow';
           onClick={() => setShowSuccessModal(false)}
         >
           Start Listening
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{showDowngradeModal && (
+  <div className="modal-overlay">
+    <div className="downgrade-modal">
+      <h3>Downgrade to Free Plan?</h3>
+      <p>Are you sure you want to downgrade to the Free plan? You will lose access to premium features.</p>
+      
+      <div className="downgrade-features">
+        <p>You will lose:</p>
+        <ul>
+          <li>Ad-free music listening</li>
+          <li>Unlimited skips</li>
+          <li>High quality audio</li>
+          <li>Offline playback</li>
+          <li>Download songs</li>
+        </ul>
+      </div>
+      
+      <div className="downgrade-buttons">
+        <button 
+          onClick={() => setShowDowngradeModal(false)} 
+          className="btn-downgrade-cancel"
+        >
+          Cancel
+        </button>
+        <button 
+          onClick={() => {
+            setCurrentSubscription('free');
+            setShowDowngradeModal(false);
+          }} 
+          className="btn-downgrade-confirm"
+        >
+          Confirm Downgrade
         </button>
       </div>
     </div>
