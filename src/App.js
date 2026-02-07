@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
-import { Heart, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Search, Home, Music, User, LogOut, Settings, HelpCircle, Trash2, Clock, ListMusic, Disc, Mic2, Album, PlusCircle, History, ChevronDown } from 'lucide-react';
+import { Heart, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Search, Home, Music, User, LogOut, Settings, HelpCircle, Trash2, Clock, ListMusic, Disc, Mic2, Album, PlusCircle, History, ChevronDown, Crown, X } from 'lucide-react';
 import './App.css';
 import Logo from './components/Logo';
 
@@ -45,6 +45,10 @@ const SoundStorm = () => {
   const [selectedCollection, setSelectedCollection] = useState(null);
   const [collectionTracks, setCollectionTracks] = useState([]);
   const [playlistMenuPosition, setPlaylistMenuPosition] = useState(null);
+  const [currentSubscription, setCurrentSubscription] = useState('free');
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successTxHash, setSuccessTxHash] = useState('');
   const [showDeletePlaylistModal, setShowDeletePlaylistModal] = useState(false);
   const [playlistToDelete, setPlaylistToDelete] = useState(null);
   const audioRef = useRef(null);
@@ -194,10 +198,11 @@ const handleGenreClick = (genre) => {
 const fetchArtists = async () => {
   try {
     const popularArtists = [
-      'Taylor Swift', 'Ed Sheeran', 'Ariana Grande', 'Drake', 'Billie Eilish',
-      'The Weeknd', 'Dua Lipa', 'Post Malone', 'Justin Bieber', 'Olivia Rodrigo',
-      'Harry Styles', 'Adele', 'Bruno Mars', 'Rihanna', 'Beyoncé'
-    ];
+  'Taylor Swift', 'Ed Sheeran', 'Ariana Grande', 'Drake', 'Billie Eilish',
+  'The Weeknd', 'Dua Lipa', 'Post Malone', 'Justin Bieber', 'Olivia Rodrigo',
+  'Harry Styles', 'Adele', 'Bruno Mars', 'Rihanna', 'Beyoncé',
+  'Coldplay', 'Imagine Dragons', 'Eminem'
+];
     
     const artistsData = [];
     
@@ -504,6 +509,52 @@ const initializeCollections = () => {
   setShowDeletePlaylistModal(false);
   setPlaylistToDelete(null);
  };
+
+ const handlePurchaseSubscription = async (plan) => {
+  if (typeof window.ethereum === 'undefined') {
+    alert('Please install MetaMask to purchase a subscription!');
+    return;
+  }
+
+  try {
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    const account = accounts[0];
+
+    // Цены в ETH (Sepolia testnet)
+    const prices = {
+      premium: '0.001',
+      premiumPlus: '0.002'
+    };
+
+    if (plan === 'free') {
+      setCurrentSubscription('free');
+      setShowPremiumModal(false);
+      return;
+    }
+
+    const transactionParameters = {
+      to: '0xcfea1502182AfDfb102f161afFB0f13B48860Bb7', // Замените на ваш адрес
+      from: account,
+      value: (parseFloat(prices[plan]) * 1e18).toString(16),
+    };
+
+    const txHash = await window.ethereum.request({
+      method: 'eth_sendTransaction',
+      params: [transactionParameters],
+    });
+
+    console.log('Transaction Hash:', txHash);
+console.log('View on Sepolia Etherscan: https://sepolia.etherscan.io/tx/' + txHash);
+
+setCurrentSubscription(plan);
+setShowPremiumModal(false);
+setSuccessTxHash(txHash);
+setShowSuccessModal(true);
+  } catch (error) {
+    console.error('Error:', error);
+    alert('Transaction failed!');
+  }
+};
 
   const addTrackToPlaylist = (playlistId, track) => {
   setPlaylists(prev => prev.map(playlist => {
@@ -978,10 +1029,16 @@ TrackRow.displayName = 'TrackRow';
                placeholder="Search for songs, artists..."
               />
            </div>
-           <button onClick={() => setCurrentView('profile')} className="header-profile-btn">
-            <User size={20} />
-            <span>{currentUser.username}</span>
-           </button>
+           <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
+  <button onClick={() => setShowPremiumModal(true)} className="header-premium-btn">
+  <Crown size={20} />
+  <span>Premium</span>
+</button>
+  <button onClick={() => setCurrentView('profile')} className="header-profile-btn">
+    <User size={20} />
+    <span>{currentUser.username}</span>
+  </button>
+</div>
           </div>
 
           <div className="content-body">
@@ -1566,6 +1623,135 @@ TrackRow.displayName = 'TrackRow';
           </div>
         </div>
       )}
+      {showPremiumModal && (
+  <div className="premium-modal-overlay" onClick={() => setShowPremiumModal(false)}>
+    <div className="premium-modal" onClick={(e) => e.stopPropagation()}>
+      <h2>Choose Your Plan</h2>
+      <button className="close-premium-x" onClick={() => setShowPremiumModal(false)}>
+  <X size={24} />
+</button>
+      <div className="premium-plans">
+        {/* FREE PLAN */}
+        <div className={`premium-plan ${currentSubscription === 'free' ? 'active' : ''}`}>
+          <div className="plan-header">
+            <div className="plan-name">Free</div>
+            <div className="plan-price">$0</div>
+            <div className="plan-period">Forever</div>
+          </div>
+          <div className="plan-features">
+            <ul>
+              <li>Basic music streaming</li>
+              <li>Limited skips per hour</li>
+              <li>Ads between songs</li>
+              <li>Standard audio quality</li>
+              <li>Online playback only</li>
+            </ul>
+          </div>
+          {currentSubscription === 'free' ? (
+            <button className="plan-button active-plan" disabled>Active</button>
+          ) : (
+            <button className="plan-button" onClick={() => handlePurchaseSubscription('free')}>
+              Downgrade to Free
+            </button>
+          )}
+        </div>
+
+        {/* PREMIUM PLAN */}
+        <div className={`premium-plan ${currentSubscription === 'premium' ? 'active' : ''}`}>
+          <div className="plan-header">
+            <div className="plan-name">Premium</div>
+            <div className="plan-price">0.001 ETH</div>
+            <div className="plan-period">per month</div>
+          </div>
+          <div className="plan-features">
+            <ul>
+              <li>Ad-free music listening</li>
+              <li>Unlimited skips</li>
+              <li>High quality audio (320kbps)</li>
+              <li>Offline playback</li>
+              <li>Download up to 1,000 songs</li>
+              <li>Play any song, anytime</li>
+            </ul>
+          </div>
+          {currentSubscription === 'premium' ? (
+            <button className="plan-button active-plan" disabled>Active</button>
+          ) : (
+            <button className="plan-button" onClick={() => handlePurchaseSubscription('premium')}>
+              Get Premium
+            </button>
+          )}
+        </div>
+
+        {/* PREMIUM PLUS PLAN */}
+        <div className={`premium-plan ${currentSubscription === 'premiumPlus' ? 'active' : ''}`}>
+          <div className="plan-header">
+            <div className="plan-name">Premium Plus</div>
+            <div className="plan-price">0.002 ETH</div>
+            <div className="plan-period">per month</div>
+          </div>
+          <div className="plan-features">
+            <ul>
+              <li>Everything in Premium</li>
+              <li>Ultra HD audio quality (FLAC)</li>
+              <li>Download unlimited songs</li>
+              <li>Early access to new features</li>
+              <li>Exclusive premium content</li>
+              <li>Priority customer support</li>
+              <li>Multi-device streaming (5 devices)</li>
+              <li>Custom playlists recommendations</li>
+            </ul>
+          </div>
+          {currentSubscription === 'premiumPlus' ? (
+            <button className="plan-button active-plan" disabled>Active</button>
+          ) : (
+            <button className="plan-button" onClick={() => handlePurchaseSubscription('premiumPlus')}>
+              Get Premium Plus
+            </button>
+          )}
+        </div>
+      </div>
+      <button className="close-premium-btn" onClick={() => setShowPremiumModal(false)}>
+        Close
+      </button>
+    </div>
+  </div>
+)}
+{showSuccessModal && (
+  <div className="success-modal-overlay" onClick={() => setShowSuccessModal(false)}>
+    <div className="success-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="success-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+      <h3>Subscription Activated!</h3>
+      <p>Your premium subscription has been successfully activated. Enjoy unlimited music!</p>
+      
+      {successTxHash && (
+        <div className="transaction-hash">
+          <p>Transaction Hash:</p>
+          <a 
+            href={`https://sepolia.etherscan.io/tx/${successTxHash}`} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="hash-link"
+          >
+            {successTxHash}
+          </a>
+        </div>
+      )}
+      
+      <div className="success-modal-buttons">
+        <button 
+          className="btn-success-primary" 
+          onClick={() => setShowSuccessModal(false)}
+        >
+          Start Listening
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };
