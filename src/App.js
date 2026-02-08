@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
 import { Heart, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Search, Home, Music, User, LogOut, Settings, HelpCircle, Trash2, Clock, ListMusic, Disc, Mic2, Album, PlusCircle, History, ChevronDown, Crown, X } from 'lucide-react';
 import './App.css';
 import Logo from './components/Logo';
+import * as api from './api/api';
 
 const SoundStorm = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -60,6 +61,7 @@ const SoundStorm = () => {
     fetchPopularTracks();
     fetchArtists();
     initializeCollections();
+    loadUserData();
   }
 }, [isLoggedIn]);
 
@@ -371,6 +373,28 @@ const initializeCollections = () => {
   setCollections(collectionsData);
 };
 
+const loadUserData = async () => {
+  try {
+    // Загрузить избранное
+    const favoritesData = await api.getFavorites();
+    setFavorites(favoritesData);
+    
+    // Загрузить недавно прослушанное
+    const recentData = await api.getRecentlyPlayed();
+    setRecentlyPlayed(recentData);
+    
+    // Загрузить плейлисты
+    const playlistsData = await api.getPlaylists();
+    setPlaylists(playlistsData);
+    
+    // Загрузить подписку
+    const subscription = await api.getCurrentSubscription();
+    setCurrentSubscription(subscription.plan);
+  } catch (error) {
+    console.error('Error loading user data:', error);
+  }
+};
+
   const validateUsername = (username) => {
     if (username.length < 3) {
       return 'Username must be at least 3 characters';
@@ -394,122 +418,139 @@ const initializeCollections = () => {
     return null;
   };
 
-  const handleLogin = () => {
-    const newErrors = {};
-    
-    if (!loginData.username) {
-      newErrors.username = 'Username is required';
-    }
-    if (!loginData.password) {
-      newErrors.password = 'Password is required';
-    }
+  const handleLogin = async () => {
+  const newErrors = {};
+  
+  if (!loginData.username) {
+    newErrors.username = 'Username is required';
+  }
+  if (!loginData.password) {
+    newErrors.password = 'Password is required';
+  }
 
-    const user = users.find(u => u.username === loginData.username && u.password === loginData.password);
-    
-    if (!user) {
-      newErrors.general = 'User not found. Please register first.';
-    }
+  if (Object.keys(newErrors).length > 0) {
+    setErrors(newErrors);
+    return;
+  }
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-
+  try {
+    const user = await api.login(loginData.username, loginData.password);
     setCurrentUser(user);
     setIsLoggedIn(true);
     setErrors({});
-  };
-
-  const handleRegister = () => {
-    const newErrors = {};
     
-    const usernameError = validateUsername(registerData.username);
-    if (usernameError) {
-      newErrors.username = usernameError;
-    }
+    // Загрузить данные пользователя
+    loadUserData();
+  } catch (error) {
+    setErrors({ general: error.message || 'Login failed' });
+  }
+};
 
-    if (!registerData.email || !registerData.email.includes('@')) {
-      newErrors.email = 'Valid email is required';
-    }
+  const handleRegister = async () => {
+  const newErrors = {};
+  
+  const usernameError = validateUsername(registerData.username);
+  if (usernameError) {
+    newErrors.username = usernameError;
+  }
 
-    const passwordError = validatePassword(registerData.password);
-    if (passwordError) {
-      newErrors.password = passwordError;
-    }
+  if (!registerData.email || !registerData.email.includes('@')) {
+    newErrors.email = 'Valid email is required';
+  }
 
-    const userExists = users.find(u => u.username === registerData.username);
-    if (userExists) {
-      newErrors.username = 'Username already exists';
-    }
+  const passwordError = validatePassword(registerData.password);
+  if (passwordError) {
+    newErrors.password = passwordError;
+  }
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
+  if (Object.keys(newErrors).length > 0) {
+    setErrors(newErrors);
+    return;
+  }
 
-    const newUser = {
-      id: Date.now(),
-      username: registerData.username,
-      email: registerData.email,
-      password: registerData.password,
-      registeredAt: new Date().toISOString()
-    };
-
-    setUsers([...users, newUser]);
-    setCurrentUser(newUser);
+  try {
+    const user = await api.register(
+      registerData.username,
+      registerData.email,
+      registerData.password
+    );
+    setCurrentUser(user);
     setIsLoggedIn(true);
     setErrors({});
-  };
+    
+    loadUserData();
+  } catch (error) {
+    setErrors({ general: error.message || 'Registration failed' });
+  }
+};
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setCurrentUser(null);
-    setCurrentView('home');
-    setCurrentTrack(null);
-    setIsPlaying(false);
-    if (audioRef.current) {
-      audioRef.current.pause();
-    }
-  };
+  const handleLogout = async () => {
+  try {
+    await api.logout();
+  } catch (error) {
+    console.error('Logout error:', error);
+  }
+  
+  setIsLoggedIn(false);
+  setCurrentUser(null);
+  setCurrentView('home');
+  setCurrentTrack(null);
+  setIsPlaying(false);
+  if (audioRef.current) {
+    audioRef.current.pause();
+  }
+};
 
-  const handleDeleteAccount = () => {
-    setUsers(users.filter(u => u.id !== currentUser.id));
+  const handleDeleteAccount = async () => {
+  try {
+    await api.deleteAccount();
     setShowDeleteModal(false);
     handleLogout();
-  };
+  } catch (error) {
+    console.error('Error deleting account:', error);
+  }
+};
 
-  const handleSupportSubmit = () => {
-    if (supportMessage.trim()) {
-      console.log('Support message:', supportMessage);
+  const handleSupportSubmit = async () => {
+  if (supportMessage.trim()) {
+    try {
+      await api.sendSupportMessage(supportMessage);
       setShowSupportSuccess(true);
       setSupportMessage('');
       setTimeout(() => setShowSupportSuccess(false), 3000);
+    } catch (error) {
+      console.error('Error sending support message:', error);
     }
-  };
+  }
+};
 
-  const handleCreatePlaylist = () => {
-    if (newPlaylistName.trim()) {
-      const newPlaylist = {
-        id: Date.now(),
-        name: newPlaylistName,
-        tracks: [],
-        createdAt: new Date().toISOString()
-      };
+  const handleCreatePlaylist = async () => {
+  if (newPlaylistName.trim()) {
+    try {
+      const newPlaylist = await api.createPlaylist(newPlaylistName);
       setPlaylists([...playlists, newPlaylist]);
       setNewPlaylistName('');
       setShowPlaylistModal(false);
+    } catch (error) {
+      console.error('Error creating playlist:', error);
     }
-  };
-
- const handleDeletePlaylist = (playlistId) => {
-  setPlaylists(prev => prev.filter(p => p.id !== playlistId));
-  if (currentView === `playlist-${playlistId}`) {
-    setCurrentView('home');
   }
-  setShowAddToPlaylistMenu(null);
-  setShowDeletePlaylistModal(false);
-  setPlaylistToDelete(null);
- };
+};
+
+ const handleDeletePlaylist = async (playlistId) => {
+  try {
+    await api.deletePlaylist(playlistId);
+    setPlaylists(prev => prev.filter(p => p.id !== playlistId));
+    if (currentView === `playlist-${playlistId}`) {
+      setCurrentView('home');
+    }
+    setShowAddToPlaylistMenu(null);
+    setShowDeletePlaylistModal(false);
+    setPlaylistToDelete(null);
+  } catch (error) {
+    console.error('Error deleting playlist:', error);
+  }
+};
 
  const handlePurchaseSubscription = async (plan) => {
   if (typeof window.ethereum === 'undefined') {
@@ -518,25 +559,42 @@ const initializeCollections = () => {
   }
 
   try {
+    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    if (chainId !== '0xaa36a7') {
+      alert('Please switch to Sepolia Test Network in MetaMask!');
+      
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0xaa36a7' }],
+        });
+      } catch (switchError) {
+        console.error('Failed to switch network:', switchError);
+        return;
+      }
+    }
+
     const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
     const account = accounts[0];
 
-    // Цены в ETH (Sepolia testnet)
     const prices = {
       premium: '0.001',
       premiumPlus: '0.002'
     };
 
     if (plan === 'free') {
+      await api.downgradeSubscription();
       setCurrentSubscription('free');
       setShowPremiumModal(false);
       return;
     }
 
+    const valueInWei = '0x' + (parseFloat(prices[plan]) * 1e18).toString(16);
+
     const transactionParameters = {
-      to: '0xcfea1502182AfDfb102f161afFB0f13B48860Bb7', // Замените на ваш адрес
+      to: '0x0000000000000000000000000000000000000000', // Замените на ваш адрес
       from: account,
-      value: (parseFloat(prices[plan]) * 1e18).toString(16),
+      value: valueInWei,
     };
 
     const txHash = await window.ethereum.request({
@@ -545,39 +603,55 @@ const initializeCollections = () => {
     });
 
     console.log('Transaction Hash:', txHash);
-console.log('View on Sepolia Etherscan: https://sepolia.etherscan.io/tx/' + txHash);
-
-setCurrentSubscription(plan);
-setShowPremiumModal(false);
-setSuccessTxHash(txHash);
-setShowSuccessModal(true);
+    
+    // Сохранить покупку на backend
+    await api.purchaseSubscription(plan, txHash, prices[plan], account);
+    
+    setCurrentSubscription(plan);
+    setShowPremiumModal(false);
+    setSuccessTxHash(txHash);
+    setShowSuccessModal(true);
   } catch (error) {
     console.error('Error:', error);
-    alert('Transaction failed!');
+    if (error.code === 4001) {
+      alert('Transaction rejected by user');
+    } else {
+      alert('Transaction failed: ' + error.message);
+    }
   }
 };
 
-  const addTrackToPlaylist = (playlistId, track) => {
-  setPlaylists(prev => prev.map(playlist => {
-    if (playlist.id === playlistId) {
-      const trackExists = playlist.tracks.find(t => t.id === track.id);
-      if (!trackExists) {
-        return { ...playlist, tracks: [...playlist.tracks, track] };
+  const addTrackToPlaylist = async (playlistId, track) => {
+  try {
+    await api.addTrackToPlaylist(playlistId, track);
+    setPlaylists(prev => prev.map(playlist => {
+      if (playlist.id === playlistId) {
+        const trackExists = playlist.tracks.find(t => t.id === track.id);
+        if (!trackExists) {
+          return { ...playlist, tracks: [...playlist.tracks, track] };
+        }
       }
-    }
-    return playlist;
-  }));
-  setShowAddToPlaylistMenu(null);
-  };
+      return playlist;
+    }));
+    setShowAddToPlaylistMenu(null);
+  } catch (error) {
+    console.error('Error adding track to playlist:', error);
+  }
+};
 
-  const removeTrackFromPlaylist = (playlistId, trackId) => {
-  setPlaylists(prev => prev.map(playlist => {
-    if (playlist.id === playlistId) {
-      return { ...playlist, tracks: playlist.tracks.filter(t => t.id !== trackId) };
-    }
-    return playlist;
-  }));
-  };
+  const removeTrackFromPlaylist = async (playlistId, trackId) => {
+  try {
+    await api.removeTrackFromPlaylist(playlistId, trackId);
+    setPlaylists(prev => prev.map(playlist => {
+      if (playlist.id === playlistId) {
+        return { ...playlist, tracks: playlist.tracks.filter(t => t.id !== trackId) };
+      }
+      return playlist;
+    }));
+  } catch (error) {
+    console.error('Error removing track from playlist:', error);
+  }
+};
 
   const handleSearchKeyPress = (e) => {
     if (e.key === 'Enter') {
@@ -585,26 +659,37 @@ setShowSuccessModal(true);
     }
   };
 
-  const toggleFavorite = (track) => {
-  setFavorites(prev => {
-    const exists = prev.find(t => t.id === track.id);
+  const toggleFavorite = async (track) => {
+  const exists = favorites.find(t => t.id === track.id);
+  
+  try {
     if (exists) {
-      return prev.filter(t => t.id !== track.id);
+      await api.removeFavorite(track.id);
+      setFavorites(prev => prev.filter(t => t.id !== track.id));
+    } else {
+      await api.addFavorite(track);
+      setFavorites(prev => [...prev, track]);
     }
-    return [...prev, track];
-  });
+  } catch (error) {
+    console.error('Error toggling favorite:', error);
+  }
 };
 
   const isFavorite = (trackId) => {
   return favorites.some(t => t.id === trackId);
 };
 
-  const addToRecentlyPlayed = (track) => {
+  const addToRecentlyPlayed = async (track) => {
+  try {
+    await api.addRecentlyPlayed(track);
     setRecentlyPlayed(prev => {
       const filtered = prev.filter(t => t.id !== track.id);
       return [track, ...filtered].slice(0, 20);
     });
-  };
+  } catch (error) {
+    console.error('Error adding to recently played:', error);
+  }
+};
 
   const playTrack = async (track, playlist = null) => {
   // Если это та же песня - просто переключаем паузу
