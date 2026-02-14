@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:5000/api'; // Заменить на ваш backend URL
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
 
 // Получить токен из localStorage
 const getToken = () => localStorage.getItem('authToken');

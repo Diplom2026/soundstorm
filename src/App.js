@@ -592,7 +592,7 @@ const loadUserData = async () => {
     const valueInWei = '0x' + (parseFloat(prices[plan]) * 1e18).toString(16);
 
     const transactionParameters = {
-      to: '0x0000000000000000000000000000000000000000', // Замените на ваш адрес
+      to: process.env.REACT_APP_RECIPIENT_ADDRESS,
       from: account,
       value: valueInWei,
     };
