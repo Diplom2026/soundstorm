@@ -23,6 +23,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!))
         };
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                context.Response.StatusCode = 401;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsJsonAsync(new { message = "Unauthorized" });
+            }
+        };
     });
 
 builder.Services.AddCors(options =>
@@ -45,8 +55,19 @@ builder.Services.AddSingleton<IMusicService, MusicService>();
 builder.Services.AddSingleton<IAuthService, AuthService>();
 builder.Services.AddSingleton<IUserService, UserService>();
 builder.Services.AddSingleton<IFavoritesService, FavoritesService>();
+builder.Services.AddSingleton<IRecentlyPlayedService, RecentlyPlayedService>();
 
 var app = builder.Build();
+
+app.UseExceptionHandler(exceptionHandlerApp =>
+{
+    exceptionHandlerApp.Run(async context =>
+    {
+        context.Response.StatusCode = 500;
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsJsonAsync(new { message = "An error occurred" });
+    });
+});
 
 app.UseCors("AllowReactApp");
 
