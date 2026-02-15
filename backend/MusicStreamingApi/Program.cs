@@ -44,6 +44,7 @@ builder.Services.AddSingleton<MongoDbContext>();
 builder.Services.AddSingleton<IMusicService, MusicService>();
 builder.Services.AddSingleton<IAuthService, AuthService>();
 builder.Services.AddSingleton<IUserService, UserService>();
+builder.Services.AddSingleton<IFavoritesService, FavoritesService>();
 
 var app = builder.Build();
 
