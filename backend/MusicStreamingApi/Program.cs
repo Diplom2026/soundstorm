@@ -57,6 +57,7 @@ builder.Services.AddSingleton<IUserService, UserService>();
 builder.Services.AddSingleton<IFavoritesService, FavoritesService>();
 builder.Services.AddSingleton<IRecentlyPlayedService, RecentlyPlayedService>();
 builder.Services.AddSingleton<ISubscriptionService, SubscriptionService>();
+builder.Services.AddSingleton<IPlaylistsService, PlaylistsService>();
 
 var app = builder.Build();
 
