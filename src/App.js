@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, memo, useCallback } from 'react';
-import { Heart, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Search, Home, Music, User, LogOut, Settings, HelpCircle, Trash2, Clock, ListMusic, Disc, Mic2, Album, PlusCircle, History, ChevronDown } from 'lucide-react';
+import { Heart, Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Search, Home, Music, User, LogOut, Settings, HelpCircle, Trash2, Clock, ListMusic, Disc, Mic2, Album, PlusCircle, History, ChevronDown, Crown, X } from 'lucide-react';
 import './App.css';
+import Logo from './components/Logo';
+import * as api from './api/api';
 
 const SoundStorm = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -36,14 +38,32 @@ const SoundStorm = () => {
   const [showAddToPlaylistMenu, setShowAddToPlaylistMenu] = useState(null);
   const [selectedGenre, setSelectedGenre] = useState(null);
   const [genreTracks, setGenreTracks] = useState([]);
+  const [artists, setArtists] = useState([]);
+  const [selectedArtist, setSelectedArtist] = useState(null);
+  const [artistTracks, setArtistTracks] = useState([]);
+  const [artistTopTracks, setArtistTopTracks] = useState([]);
+  const [collections, setCollections] = useState([]);
+  const [selectedCollection, setSelectedCollection] = useState(null);
+  const [collectionTracks, setCollectionTracks] = useState([]);
+  const [playlistMenuPosition, setPlaylistMenuPosition] = useState(null);
+  const [currentSubscription, setCurrentSubscription] = useState('free');
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successTxHash, setSuccessTxHash] = useState('');
+  const [showDowngradeModal, setShowDowngradeModal] = useState(false);
+  const [showDeletePlaylistModal, setShowDeletePlaylistModal] = useState(false);
+  const [playlistToDelete, setPlaylistToDelete] = useState(null);
   const audioRef = useRef(null);
   const sleepTimerRef = useRef(null);
 
   useEffect(() => {
-    if (isLoggedIn) {
-      fetchPopularTracks();
-    }
-  }, [isLoggedIn]);
+  if (isLoggedIn) {
+    fetchPopularTracks();
+    fetchArtists();
+    initializeCollections();
+    loadUserData();
+  }
+}, [isLoggedIn]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -178,6 +198,203 @@ const handleGenreClick = (genre) => {
   fetchGenreTracks(genre);
 };
 
+const fetchArtists = async () => {
+  try {
+    const popularArtists = [
+  'Taylor Swift', 'Ed Sheeran', 'Ariana Grande', 'Drake', 'Billie Eilish',
+  'The Weeknd', 'Dua Lipa', 'Post Malone', 'Justin Bieber', 'Olivia Rodrigo',
+  'Harry Styles', 'Adele', 'Bruno Mars', 'Rihanna', 'Beyoncé',
+  'Coldplay', 'Imagine Dragons', 'Eminem'
+];
+    
+    const artistsData = [];
+    
+    for (const artistName of popularArtists) {
+      try {
+        const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(artistName)}&limit=1&entity=song`);
+        const data = await response.json();
+        
+        if (data.results && data.results.length > 0) {
+          const track = data.results[0];
+          artistsData.push({
+            id: track.artistId,
+            name: track.artistName,
+            image: track.artworkUrl100.replace('100x100', '600x600')
+          });
+        }
+      } catch (error) {
+        console.error(`Error fetching ${artistName}:`, error);
+      }
+    }
+    
+    setArtists(artistsData);
+  } catch (error) {
+    console.error('Error fetching artists:', error);
+  }
+};
+
+const fetchArtistTracks = async (artistName) => {
+  try {
+    const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(artistName)}&limit=30&entity=song`);
+    const data = await response.json();
+    
+    if (data.results) {
+      const tracks = data.results
+        .filter(track => track.artistName.toLowerCase() === artistName.toLowerCase())
+        .map((track) => ({
+          id: track.trackId,
+          title: track.trackName,
+          preview: track.previewUrl,
+          duration: Math.floor(track.trackTimeMillis / 1000),
+          artist: { name: track.artistName },
+          album: { 
+            title: track.collectionName,
+            cover_small: track.artworkUrl100,
+            cover_large: track.artworkUrl100.replace('100x100', '600x600')
+          },
+          cover_small: track.artworkUrl100,
+          cover_large: track.artworkUrl100.replace('100x100', '600x600')
+        }));
+      
+      setArtistTracks(tracks);
+      setArtistTopTracks(tracks.slice(0, 5));
+    }
+  } catch (error) {
+    console.error('Error fetching artist tracks:', error);
+  }
+};
+
+const handleArtistClick = (artist) => {
+  setSelectedArtist(artist);
+  setCurrentView('artist-detail');
+  fetchArtistTracks(artist.name);
+};
+
+const fetchCollectionTracks = async (collectionName, searchTerm) => {
+  try {
+    const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchTerm)}&limit=30&entity=song`);
+    const data = await response.json();
+    
+    if (data.results) {
+      const tracks = data.results.map((track) => ({
+        id: track.trackId,
+        title: track.trackName,
+        preview: track.previewUrl,
+        duration: Math.floor(track.trackTimeMillis / 1000),
+        artist: { name: track.artistName },
+        album: { 
+          title: track.collectionName,
+          cover_small: track.artworkUrl100,
+          cover_large: track.artworkUrl100.replace('100x100', '600x600')
+        },
+        cover_small: track.artworkUrl100,
+        cover_large: track.artworkUrl100.replace('100x100', '600x600')
+      }));
+      setCollectionTracks(tracks);
+    }
+  } catch (error) {
+    console.error('Error fetching collection tracks:', error);
+  }
+};
+
+const handleCollectionClick = (collection) => {
+  setSelectedCollection(collection);
+  setCurrentView('collection-detail');
+  fetchCollectionTracks(collection.name, collection.searchTerm);
+};
+
+const initializeCollections = () => {
+  const collectionsData = [
+    {
+      id: 1,
+      name: 'Club Bangers',
+      description: 'Best tracks for the club',
+      searchTerm: 'club+dance+party+edm',
+      image: 'https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=600',
+      color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+    },
+    {
+      id: 2,
+      name: 'Summer Vibes',
+      description: 'Perfect for sunny days',
+      searchTerm: 'summer+vibes+beach',
+      image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600',
+      color: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
+    },
+    {
+      id: 3,
+      name: 'Workout Energy',
+      description: 'Pump up your workout',
+      searchTerm: 'workout+gym+motivation',
+      image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600',
+      color: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)'
+    },
+    {
+      id: 4,
+      name: 'Chill & Relax',
+      description: 'Calm and peaceful vibes',
+      searchTerm: 'chill+relax+lofi',
+      image: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=600',
+      color: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)'
+    },
+    {
+      id: 5,
+      name: 'Road Trip',
+      description: 'Songs for the open road',
+      searchTerm: 'road+trip+driving',
+      image: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600',
+      color: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)'
+    },
+    {
+      id: 6,
+      name: 'Party Hits',
+      description: 'Get the party started',
+      searchTerm: 'party+hits+celebration',
+      image: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=600',
+      color: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)'
+    },
+    {
+      id: 7,
+      name: 'Study Focus',
+      description: 'Concentrate better',
+      searchTerm: 'study+focus+instrumental',
+      image: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=600',
+      color: 'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)'
+    },
+    {
+      id: 8,
+      name: 'Late Night',
+      description: 'For those midnight hours',
+      searchTerm: 'night+midnight+slow',
+      image: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=600',
+      color: 'linear-gradient(135deg, #434343 0%, #000000 100%)'
+    }
+  ];
+  setCollections(collectionsData);
+};
+
+const loadUserData = async () => {
+  try {
+    // Загрузить избранное
+    const favoritesData = await api.getFavorites();
+    setFavorites(favoritesData);
+    
+    // Загрузить недавно прослушанное
+    const recentData = await api.getRecentlyPlayed();
+    setRecentlyPlayed(recentData);
+    
+    // Загрузить плейлисты
+    const playlistsData = await api.getPlaylists();
+    setPlaylists(playlistsData);
+    
+    // Загрузить подписку
+    const subscription = await api.getCurrentSubscription();
+    setCurrentSubscription(subscription.plan);
+  } catch (error) {
+    console.error('Error loading user data:', error);
+  }
+};
+
   const validateUsername = (username) => {
     if (username.length < 3) {
       return 'Username must be at least 3 characters';
@@ -201,125 +418,240 @@ const handleGenreClick = (genre) => {
     return null;
   };
 
-  const handleLogin = () => {
-    const newErrors = {};
-    
-    if (!loginData.username) {
-      newErrors.username = 'Username is required';
-    }
-    if (!loginData.password) {
-      newErrors.password = 'Password is required';
-    }
+  const handleLogin = async () => {
+  const newErrors = {};
+  
+  if (!loginData.username) {
+    newErrors.username = 'Username is required';
+  }
+  if (!loginData.password) {
+    newErrors.password = 'Password is required';
+  }
 
-    const user = users.find(u => u.username === loginData.username && u.password === loginData.password);
-    
-    if (!user) {
-      newErrors.general = 'User not found. Please register first.';
-    }
+  if (Object.keys(newErrors).length > 0) {
+    setErrors(newErrors);
+    return;
+  }
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
-
+  try {
+    const user = await api.login(loginData.username, loginData.password);
     setCurrentUser(user);
     setIsLoggedIn(true);
     setErrors({});
-  };
-
-  const handleRegister = () => {
-    const newErrors = {};
     
-    const usernameError = validateUsername(registerData.username);
-    if (usernameError) {
-      newErrors.username = usernameError;
-    }
+    // Загрузить данные пользователя
+    loadUserData();
+  } catch (error) {
+    setErrors({ general: error.message || 'Login failed' });
+  }
+};
 
-    if (!registerData.email || !registerData.email.includes('@')) {
-      newErrors.email = 'Valid email is required';
-    }
+  const handleRegister = async () => {
+  const newErrors = {};
+  
+  const usernameError = validateUsername(registerData.username);
+  if (usernameError) {
+    newErrors.username = usernameError;
+  }
 
-    const passwordError = validatePassword(registerData.password);
-    if (passwordError) {
-      newErrors.password = passwordError;
-    }
+  if (!registerData.email || !registerData.email.includes('@')) {
+    newErrors.email = 'Valid email is required';
+  }
 
-    const userExists = users.find(u => u.username === registerData.username);
-    if (userExists) {
-      newErrors.username = 'Username already exists';
-    }
+  const passwordError = validatePassword(registerData.password);
+  if (passwordError) {
+    newErrors.password = passwordError;
+  }
 
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      return;
-    }
+  if (Object.keys(newErrors).length > 0) {
+    setErrors(newErrors);
+    return;
+  }
 
-    const newUser = {
-      id: Date.now(),
-      username: registerData.username,
-      email: registerData.email,
-      password: registerData.password,
-      registeredAt: new Date().toISOString()
-    };
-
-    setUsers([...users, newUser]);
-    setCurrentUser(newUser);
+  try {
+    const user = await api.register(
+      registerData.username,
+      registerData.email,
+      registerData.password
+    );
+    setCurrentUser(user);
     setIsLoggedIn(true);
     setErrors({});
-  };
+    
+    loadUserData();
+  } catch (error) {
+    setErrors({ general: error.message || 'Registration failed' });
+  }
+};
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setCurrentUser(null);
-    setCurrentView('home');
-    setCurrentTrack(null);
-    setIsPlaying(false);
-    if (audioRef.current) {
-      audioRef.current.pause();
-    }
-  };
+  const handleLogout = async () => {
+  try {
+    await api.logout();
+  } catch (error) {
+    console.error('Logout error:', error);
+  }
+  
+  setIsLoggedIn(false);
+  setCurrentUser(null);
+  setCurrentView('home');
+  setCurrentTrack(null);
+  setIsPlaying(false);
+  if (audioRef.current) {
+    audioRef.current.pause();
+  }
+};
 
-  const handleDeleteAccount = () => {
-    setUsers(users.filter(u => u.id !== currentUser.id));
+  const handleDeleteAccount = async () => {
+  try {
+    await api.deleteAccount();
     setShowDeleteModal(false);
     handleLogout();
-  };
+  } catch (error) {
+    console.error('Error deleting account:', error);
+  }
+};
 
-  const handleSupportSubmit = () => {
-    if (supportMessage.trim()) {
-      console.log('Support message:', supportMessage);
+  const handleSupportSubmit = async () => {
+  if (supportMessage.trim()) {
+    try {
+      await api.sendSupportMessage(supportMessage);
       setShowSupportSuccess(true);
       setSupportMessage('');
       setTimeout(() => setShowSupportSuccess(false), 3000);
+    } catch (error) {
+      console.error('Error sending support message:', error);
     }
-  };
+  }
+};
 
-  const handleCreatePlaylist = () => {
-    if (newPlaylistName.trim()) {
-      const newPlaylist = {
-        id: Date.now(),
-        name: newPlaylistName,
-        tracks: [],
-        createdAt: new Date().toISOString()
-      };
+  const handleCreatePlaylist = async () => {
+  if (newPlaylistName.trim()) {
+    try {
+      const newPlaylist = await api.createPlaylist(newPlaylistName);
       setPlaylists([...playlists, newPlaylist]);
       setNewPlaylistName('');
       setShowPlaylistModal(false);
+    } catch (error) {
+      console.error('Error creating playlist:', error);
     }
-  };
+  }
+};
 
-  const addTrackToPlaylist = (playlistId, track) => {
-  setPlaylists(prev => prev.map(playlist => {
-    if (playlist.id === playlistId) {
-      const trackExists = playlist.tracks.find(t => t.id === track.id);
-      if (!trackExists) {
-        return { ...playlist, tracks: [...playlist.tracks, track] };
+ const handleDeletePlaylist = async (playlistId) => {
+  try {
+    await api.deletePlaylist(playlistId);
+    setPlaylists(prev => prev.filter(p => p.id !== playlistId));
+    if (currentView === `playlist-${playlistId}`) {
+      setCurrentView('home');
+    }
+    setShowAddToPlaylistMenu(null);
+    setShowDeletePlaylistModal(false);
+    setPlaylistToDelete(null);
+  } catch (error) {
+    console.error('Error deleting playlist:', error);
+  }
+};
+
+ const handlePurchaseSubscription = async (plan) => {
+  if (typeof window.ethereum === 'undefined') {
+    alert('Please install MetaMask to purchase a subscription!');
+    return;
+  }
+
+  try {
+    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    if (chainId !== '0xaa36a7') {
+      alert('Please switch to Sepolia Test Network in MetaMask!');
+      
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0xaa36a7' }],
+        });
+      } catch (switchError) {
+        console.error('Failed to switch network:', switchError);
+        return;
       }
     }
-    return playlist;
-  }));
-  setShowAddToPlaylistMenu(null);
-  };
+
+    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+    const account = accounts[0];
+
+    const prices = {
+      premium: '0.001',
+      premiumPlus: '0.002'
+    };
+
+    if (plan === 'free') {
+      await api.downgradeSubscription();
+      setCurrentSubscription('free');
+      setShowPremiumModal(false);
+      return;
+    }
+
+    const valueInWei = '0x' + (parseFloat(prices[plan]) * 1e18).toString(16);
+
+    const transactionParameters = {
+      to: process.env.REACT_APP_RECIPIENT_ADDRESS,
+      from: account,
+      value: valueInWei,
+    };
+
+    const txHash = await window.ethereum.request({
+      method: 'eth_sendTransaction',
+      params: [transactionParameters],
+    });
+
+    console.log('Transaction Hash:', txHash);
+    
+    // Сохранить покупку на backend
+    await api.purchaseSubscription(plan, txHash, prices[plan], account);
+    
+    setCurrentSubscription(plan);
+    setShowPremiumModal(false);
+    setSuccessTxHash(txHash);
+    setShowSuccessModal(true);
+  } catch (error) {
+    console.error('Error:', error);
+    if (error.code === 4001) {
+      alert('Transaction rejected by user');
+    } else {
+      alert('Transaction failed: ' + error.message);
+    }
+  }
+};
+
+  const addTrackToPlaylist = async (playlistId, track) => {
+  try {
+    await api.addTrackToPlaylist(playlistId, track);
+    setPlaylists(prev => prev.map(playlist => {
+      if (playlist.id === playlistId) {
+        const trackExists = playlist.tracks.find(t => t.id === track.id);
+        if (!trackExists) {
+          return { ...playlist, tracks: [...playlist.tracks, track] };
+        }
+      }
+      return playlist;
+    }));
+    setShowAddToPlaylistMenu(null);
+  } catch (error) {
+    console.error('Error adding track to playlist:', error);
+  }
+};
+
+  const removeTrackFromPlaylist = async (playlistId, trackId) => {
+  try {
+    await api.removeTrackFromPlaylist(playlistId, trackId);
+    setPlaylists(prev => prev.map(playlist => {
+      if (playlist.id === playlistId) {
+        return { ...playlist, tracks: playlist.tracks.filter(t => t.id !== trackId) };
+      }
+      return playlist;
+    }));
+  } catch (error) {
+    console.error('Error removing track from playlist:', error);
+  }
+};
 
   const handleSearchKeyPress = (e) => {
     if (e.key === 'Enter') {
@@ -327,79 +659,93 @@ const handleGenreClick = (genre) => {
     }
   };
 
-  const toggleFavorite = useCallback((track) => {
-    setFavorites(prev => {
-      const exists = prev.find(t => t.id === track.id);
-      if (exists) {
-        return prev.filter(t => t.id !== track.id);
-      }
-      return [...prev, track];
-    });
-  }, []);
+  const toggleFavorite = async (track) => {
+  const exists = favorites.find(t => t.id === track.id);
+  
+  try {
+    if (exists) {
+      await api.removeFavorite(track.id);
+      setFavorites(prev => prev.filter(t => t.id !== track.id));
+    } else {
+      await api.addFavorite(track);
+      setFavorites(prev => [...prev, track]);
+    }
+  } catch (error) {
+    console.error('Error toggling favorite:', error);
+  }
+};
 
-  const isFavorite = useCallback((trackId) => {
-    return favorites.some(t => t.id === trackId);
-  }, [favorites]);
+  const isFavorite = (trackId) => {
+  return favorites.some(t => t.id === trackId);
+};
 
-  const addToRecentlyPlayed = (track) => {
+  const addToRecentlyPlayed = async (track) => {
+  try {
+    await api.addRecentlyPlayed(track);
     setRecentlyPlayed(prev => {
       const filtered = prev.filter(t => t.id !== track.id);
       return [track, ...filtered].slice(0, 20);
     });
-  };
+  } catch (error) {
+    console.error('Error adding to recently played:', error);
+  }
+};
 
-  const playTrack = useCallback(async (track, playlist = null) => {
-    if (currentTrack?.id === track.id) {
-      if (isPlaying) {
-        setIsPlaying(false);
-        if (audioRef.current) {
-          audioRef.current.pause();
-        }
-      } else {
-        setIsPlaying(true);
-        if (audioRef.current) {
-          try {
-            await audioRef.current.play();
-          } catch (err) {
-            console.error('Play error:', err);
-            setIsPlaying(false);
-          }
-        }
+  const playTrack = async (track, playlist = null) => {
+  // Если это та же песня - просто переключаем паузу
+  if (currentTrack?.id === track.id) {
+    if (isPlaying) {
+      setIsPlaying(false);
+      if (audioRef.current) {
+        audioRef.current.pause();
       }
-      return;
-    }
-    
-    if (playlist) {
-      setCurrentPlaylist(playlist);
-      const index = playlist.findIndex(t => t.id === track.id);
-      setCurrentTrackIndex(index);
-    }
-    
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = '';
-      audioRef.current.load();
-    }
-    
-    setIsPlaying(false);
-    setCurrentTime(0);
-    setCurrentTrack(track);
-    addToRecentlyPlayed(track);
-    
-    setTimeout(async () => {
-      if (audioRef.current && track.preview) {
+    } else {
+      setIsPlaying(true);
+      if (audioRef.current) {
         try {
-          audioRef.current.src = track.preview;
-          audioRef.current.load();
           await audioRef.current.play();
-          setIsPlaying(true);
         } catch (err) {
           console.error('Play error:', err);
           setIsPlaying(false);
         }
       }
-    }, 50);
-  }, [currentTrack, isPlaying]);
+    }
+    return;
+  }
+  
+  // Новая песня - полная остановка старой
+  if (audioRef.current) {
+    audioRef.current.pause();
+    audioRef.current.currentTime = 0;
+    audioRef.current.src = '';
+  }
+  
+  if (playlist) {
+    setCurrentPlaylist(playlist);
+    const index = playlist.findIndex(t => t.id === track.id);
+    setCurrentTrackIndex(index);
+  }
+  
+  setIsPlaying(false);
+  setCurrentTime(0);
+  setCurrentTrack(track);
+  addToRecentlyPlayed(track);
+  
+  // Загружаем и запускаем новую песню
+  await new Promise(resolve => setTimeout(resolve, 100));
+  
+  if (audioRef.current && track.preview) {
+    try {
+      audioRef.current.src = track.preview;
+      await audioRef.current.load();
+      await audioRef.current.play();
+      setIsPlaying(true);
+    } catch (err) {
+      console.error('Play error:', err);
+      setIsPlaying(false);
+    }
+  }
+};
 
   const playNextTrack = () => {
     if (currentPlaylist.length === 0) return;
@@ -436,11 +782,16 @@ const handleGenreClick = (genre) => {
     return (
       <div className="auth-container">
         <div className="auth-box">
-          <div className="auth-header">
-            <Music className="logo-icon" />
-            <h1>SoundStorm</h1>
-            <p>Music for everyone</p>
-          </div>
+         <div className="auth-header">
+  <Logo size={58} />
+  <div>
+    <h1>
+      <span className="sound-text">Sound</span>
+      <span className="storm-text">Storm</span>
+    </h1>
+  </div>
+</div>
+<p style={{textAlign: 'center', margin: '0 0 40px 0', color: '#b3b3b3', fontSize: '16px', fontWeight: 'bold'}}>Music for everyone</p>
 
           {!showRegister ? (
             <div className="auth-form">
@@ -528,22 +879,34 @@ const handleGenreClick = (genre) => {
     );
   }
 
-  const TrackRow = memo(({ track, index, playlist }) => {
+  const TrackRow = memo(({ track, index, playlist, isPlaylistView = false, playlistId = null }) => {
   const isCurrentTrack = currentTrack?.id === track.id;
+  const showPlayingIcon = isCurrentTrack && isPlaying;
   
   return (
-    <div className={`track-row ${isCurrentTrack ? 'current-track' : ''}`}>
+    <div 
+      className="track-row" 
+      data-playing={isCurrentTrack ? 'true' : 'false'}
+    >
       <div className="track-number">
         <span className="number">{index + 1}</span>
-        <button onClick={() => playTrack(track, playlist)} className="play-btn-small">
-          {isCurrentTrack && isPlaying ? (
-            <Pause size={16} />
-          ) : (
-            <Play size={16} />
-          )}
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            playTrack(track, playlist);
+          }} 
+          className="play-btn-small"
+        >
+          {showPlayingIcon ? <Pause size={16} /> : <Play size={16} />}
         </button>
       </div>
-      <div className="track-info" onClick={() => setShowFullPlayer(true)}>
+      <div 
+        className="track-info" 
+        onClick={(e) => {
+          e.stopPropagation();
+          if (currentTrack) setShowFullPlayer(true);
+        }}
+      >
         <img src={track.cover_small} alt={track.title} />
         <div className="track-details">
           <div className="track-title">{track.title}</div>
@@ -554,50 +917,111 @@ const handleGenreClick = (genre) => {
       <div className="track-duration">{formatTime(track.duration)}</div>
       <div className="track-actions">
         <button
-          onClick={() => toggleFavorite(track)}
-          className={`favorite-btn ${isFavorite(track.id) ? 'active' : ''}`}
+          onClick={(e) => { 
+            e.stopPropagation(); 
+            toggleFavorite(track); 
+          }}
+          className={isFavorite(track.id) ? 'favorite-btn active' : 'favorite-btn'}
+          type="button"
         >
           <Heart size={20} />
         </button>
-        <button
-          onClick={() => setShowAddToPlaylistMenu(showAddToPlaylistMenu === track.id ? null : track.id)}
-          className="add-to-playlist-btn"
-          style={{ position: 'relative' }}
-        >
-          <PlusCircle size={20} />
-        </button>
-        {showAddToPlaylistMenu === track.id && (
-          <div className="playlist-menu">
-            <div className="playlist-menu-header">Add to playlist</div>
-            {playlists.length === 0 ? (
-              <div className="playlist-menu-empty">No playlists yet</div>
-            ) : (
-              playlists.map(pl => (
-                <button
-                  key={pl.id}
-                  onClick={() => addTrackToPlaylist(pl.id, track)}
-                  className="playlist-menu-item"
-                >
-                  <ListMusic size={16} />
-                  <span>{pl.name}</span>
-                </button>
-              ))
+        
+        {isPlaylistView && playlistId ? (
+          <button
+            onClick={(e) => { 
+              e.stopPropagation(); 
+              removeTrackFromPlaylist(playlistId, track.id); 
+            }}
+            className="remove-from-playlist-btn"
+            title="Remove from playlist"
+            type="button"
+          >
+            <Trash2 size={20} />
+          </button>
+        ) : (
+          <>
+            <button
+              onClick={(e) => { 
+                e.stopPropagation();
+                const isOpen = showAddToPlaylistMenu === track.id;
+                
+                if (!isOpen) {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setPlaylistMenuPosition({
+                    top: rect.top -15,
+                    right: window.innerWidth - rect.right
+                  });
+                } else {
+                  setPlaylistMenuPosition(null);
+                }
+                
+                setShowAddToPlaylistMenu(isOpen ? null : track.id); 
+              }}
+              className="add-to-playlist-btn"
+              type="button"
+            >
+              <PlusCircle size={20} />
+            </button>
+            {showAddToPlaylistMenu === track.id && playlistMenuPosition && (
+              <div 
+                className="playlist-menu" 
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  position: 'fixed',
+                  top: `${playlistMenuPosition.top}px`,
+                  right: `${playlistMenuPosition.right}px`,
+                  transform: 'translateY(-100%)'
+                }}
+              >
+                <div className="playlist-menu-header">Add to playlist</div>
+                {playlists.length === 0 ? (
+                  <div className="playlist-menu-empty">No playlists yet</div>
+                ) : (
+                  <div className="playlist-menu-list">
+                    {playlists.map(pl => (
+                      <button
+                        key={pl.id}
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          addTrackToPlaylist(pl.id, track); 
+                        }}
+                        className="playlist-menu-item"
+                        type="button"
+                      >
+                        <ListMusic size={16} />
+                        <span>{pl.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
-          </div>
+          </>
         )}
       </div>
     </div>
   );
+}, (prevProps, nextProps) => {
+  if (prevProps.track.id !== nextProps.track.id) return false;
+  if (prevProps.index !== nextProps.index) return false;
+  if (prevProps.isPlaylistView !== nextProps.isPlaylistView) return false;
+  return true;
 });
+
+TrackRow.displayName = 'TrackRow';
 
   return (
     <div className="app">
       <div className="main-container">
         <div className="sidebar">
-          <div className="sidebar-header">
-            <Music size={40} />
-            <h1>SoundStorm</h1>
-          </div>
+          <div className="sidebar-header" onClick={() => setCurrentView('home')} style={{cursor: 'pointer'}}>
+  <Logo size={48} />
+  <h1>
+    <span style={{color: '#1db954'}}>Sound</span>
+    <span style={{color: '#fff'}}>Storm</span>
+  </h1>
+</div>
 
           <nav className="sidebar-nav">
             <button onClick={() => setCurrentView('home')} className={currentView === 'home' ? 'active' : ''}>
@@ -614,7 +1038,7 @@ const handleGenreClick = (genre) => {
             </button>
             <button onClick={() => setCurrentView('recent')} className={currentView === 'recent' ? 'active' : ''}>
               <History size={24} />
-              <span style={{whiteSpace: 'nowrap'}}>Recently Played</span>
+              <span style={{whiteSpace: 'nowrap'}}>Recently</span>
             </button>
           </nav>
 
@@ -648,37 +1072,59 @@ const handleGenreClick = (genre) => {
               </button>
             </div>
             {playlists.map(playlist => (
-              <button key={playlist.id} onClick={() => setCurrentView(`playlist-${playlist.id}`)} className={currentView === `playlist-${playlist.id}` ? 'active' : ''}>
-                <ListMusic size={20} />
-                <span>{playlist.name}</span>
-              </button>
-            ))}
+  <div key={playlist.id} className="playlist-item">
+    <button 
+      onClick={() => setCurrentView(`playlist-${playlist.id}`)} 
+      className={currentView === `playlist-${playlist.id}` ? 'playlist-item-btn active' : 'playlist-item-btn'}
+    >
+      <ListMusic size={20} />
+      <span>{playlist.name}</span>
+    </button>
+    <button
+  onClick={(e) => {
+    e.stopPropagation();
+    setPlaylistToDelete(playlist);
+    setShowDeletePlaylistModal(true);
+  }}
+  className="delete-playlist-btn"
+  title="Delete playlist"
+>
+  <Trash2 size={16} />
+</button>
+  </div>
+))}
           </div>
 
           <div className="sidebar-footer">
-            <button onClick={() => setCurrentView('profile')} className="profile-btn">
-              <User size={20} />
-              <span>{currentUser.username}</span>
-            </button>
-            <button onClick={handleLogout} className="logout-btn">
-              <LogOut size={20} />
-              <span>Log out</span>
-            </button>
+              <button onClick={handleLogout} className="logout-btn">
+                <LogOut size={20} />
+                <span>Log out</span>
+              </button>
           </div>
         </div>
 
         <div className="content">
           <div className="search-bar">
-            <div className="search-input-wrapper">
-              <Search className="search-icon" />
+           <div className="search-input-wrapper">
+             <Search className="search-icon" />
               <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={handleSearchKeyPress}
-                placeholder="Search for songs, artists..."
+               type="text"
+               value={searchQuery}
+               onChange={(e) => setSearchQuery(e.target.value)}
+               onKeyPress={handleSearchKeyPress}
+               placeholder="Search for songs, artists..."
               />
-            </div>
+           </div>
+           <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
+  <button onClick={() => setShowPremiumModal(true)} className="header-premium-btn">
+  <Crown size={20} />
+  <span>Premium</span>
+</button>
+  <button onClick={() => setCurrentView('profile')} className="header-profile-btn">
+    <User size={20} />
+    <span>{currentUser.username}</span>
+  </button>
+</div>
           </div>
 
           <div className="content-body">
@@ -803,24 +1249,130 @@ const handleGenreClick = (genre) => {
             )}
 
             {currentView === 'artists' && (
-              <div>
-                <h2>Artists</h2>
-                <div className="empty-state">
-                  <Mic2 size={64} />
-                  <p>Artists view coming soon!</p>
-                </div>
-              </div>
-            )}
+  <div>
+    <h2>Artists</h2>
+    {artists.length === 0 ? (
+      <div className="empty-state">
+        <Mic2 size={64} />
+        <p>Loading artists...</p>
+      </div>
+    ) : (
+      <div className="artists-grid">
+        {artists.map(artist => (
+          <div 
+            key={artist.id} 
+            className="artist-card"
+            onClick={() => handleArtistClick(artist)}
+          >
+            <img src={artist.image} alt={artist.name} />
+            <h3>{artist.name}</h3>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+
+{currentView === 'artist-detail' && selectedArtist && (
+  <div>
+    <button 
+      onClick={() => setCurrentView('artists')} 
+      className="back-button"
+    >
+      ← Back to Artists
+    </button>
+    <div className="artist-header">
+      <img src={selectedArtist.image} alt={selectedArtist.name} className="artist-header-image" />
+      <h1>{selectedArtist.name}</h1>
+    </div>
+    
+    <div className="artist-content">
+      <div className="top-tracks-section">
+        <h2>Top 5 Popular Songs</h2>
+        {artistTopTracks.length === 0 ? (
+          <div className="empty-state">
+            <Music size={64} />
+            <p>Loading top tracks...</p>
+          </div>
+        ) : (
+          <div className="track-list">
+            {artistTopTracks.map((track, index) => (
+              <TrackRow key={track.id} track={track} index={index} playlist={artistTopTracks} />
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="all-tracks-section">
+        <h2>All Songs</h2>
+        {artistTracks.length === 0 ? (
+          <div className="empty-state">
+            <Music size={64} />
+            <p>Loading tracks...</p>
+          </div>
+        ) : (
+          <div className="track-list">
+            {artistTracks.map((track, index) => (
+              <TrackRow key={track.id} track={track} index={index} playlist={artistTracks} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
 
             {currentView === 'albums' && (
-              <div>
-                <h2>Albums</h2>
-                <div className="empty-state">
-                  <Album size={64} />
-                  <p>Albums view coming soon!</p>
-                </div>
-              </div>
-            )}
+  <div>
+    <h2>Albums</h2>
+    <div className="collections-grid">
+      {collections.map(collection => (
+        <div 
+          key={collection.id} 
+          className="collection-card"
+          onClick={() => handleCollectionClick(collection)}
+          style={{ background: collection.color }}
+        >
+          <div className="collection-overlay"></div>
+          <div className="collection-content">
+            <h3>{collection.name}</h3>
+            <p>{collection.description}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
+
+{currentView === 'collection-detail' && selectedCollection && (
+  <div>
+    <button 
+      onClick={() => setCurrentView('albums')} 
+      className="back-button"
+    >
+      ← Back to Albums
+    </button>
+    <div className="collection-header" style={{ background: selectedCollection.color }}>
+      <div className="collection-header-content">
+        <h1>{selectedCollection.name}</h1>
+        <p>{selectedCollection.description}</p>
+      </div>
+    </div>
+    
+    {collectionTracks.length === 0 ? (
+      <div className="empty-state">
+        <Music size={64} />
+        <p>Loading tracks...</p>
+      </div>
+    ) : (
+      <div className="track-list">
+        {collectionTracks.map((track, index) => (
+          <TrackRow key={track.id} track={track} index={index} playlist={collectionTracks} />
+        ))}
+      </div>
+    )}
+  </div>
+)}
 
             {currentView.startsWith('playlist-') && (
   <div>
@@ -831,7 +1383,22 @@ const handleGenreClick = (genre) => {
       
       return (
         <>
-          <h2>{playlist.name}</h2>
+          <div className="playlist-header-section">
+  <div className="playlist-header-left">
+    <h2>{playlist.name}</h2>
+    <span className="playlist-count">{playlist.tracks.length} songs</span>
+  </div>
+  <button
+  onClick={() => {
+    setPlaylistToDelete(playlist);
+    setShowDeletePlaylistModal(true);
+  }}
+  className="delete-playlist-btn-large"
+>
+  <Trash2 size={20} />
+  <span>Delete Playlist</span>
+</button>
+</div>
           {playlist.tracks.length === 0 ? (
             <div className="empty-state">
               <ListMusic size={64} />
@@ -840,7 +1407,14 @@ const handleGenreClick = (genre) => {
           ) : (
             <div className="track-list">
               {playlist.tracks.map((track, index) => (
-                <TrackRow key={track.id} track={track} index={index} playlist={playlist.tracks} />
+                <TrackRow 
+                  key={track.id} 
+                  track={track} 
+                  index={index} 
+                  playlist={playlist.tracks}
+                  isPlaylistView={true}
+                  playlistId={playlistId}
+                />
               ))}
             </div>
           )}
@@ -885,17 +1459,17 @@ const handleGenreClick = (genre) => {
                     </div>
                     <div className="section-content">
                       <div className="setting-item">
-                        <label>Default Volume</label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.1"
-                          value={volume}
-                          onChange={(e) => setVolume(parseFloat(e.target.value))}
-                          className="volume-slider"
-                        />
-                        <span>{Math.round(volume * 100)}%</span>
+                         <label>Default Volume</label>
+                           <input
+                             type="range"
+                             min="0"
+                             max="1"
+                             step="0.01"
+                             value={volume}
+                             onChange={(e) => setVolume(parseFloat(e.target.value))}
+                             className="volume-slider"
+                          />
+                            <span>{Math.round(volume * 100)}%</span>
                       </div>
                       <div className="setting-item">
                         <label>Auto-play next track</label>
@@ -1087,6 +1661,32 @@ const handleGenreClick = (genre) => {
         </div>
       )}
 
+      {showDeletePlaylistModal && playlistToDelete && (
+  <div className="modal-overlay">
+    <div className="modal">
+      <h3>Delete Playlist</h3>
+      <p>Are you sure you want to delete "{playlistToDelete.name}"? This action cannot be undone.</p>
+      <div className="modal-buttons">
+        <button 
+          onClick={() => {
+            setShowDeletePlaylistModal(false);
+            setPlaylistToDelete(null);
+          }} 
+          className="btn-secondary"
+        >
+          Cancel
+        </button>
+        <button 
+          onClick={() => handleDeletePlaylist(playlistToDelete.id)} 
+          className="btn-danger"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
       {showPlaylistModal && (
         <div className="modal-overlay">
           <div className="modal">
@@ -1109,6 +1709,176 @@ const handleGenreClick = (genre) => {
           </div>
         </div>
       )}
+      {showPremiumModal && (
+  <div className="premium-modal-overlay" onClick={() => setShowPremiumModal(false)}>
+    <div className="premium-modal" onClick={(e) => e.stopPropagation()}>
+      <h2>Choose Your Plan</h2>
+      <button className="close-premium-x" onClick={() => setShowPremiumModal(false)}>
+  <X size={24} />
+</button>
+      <div className="premium-plans">
+        {/* FREE PLAN */}
+        <div className={`premium-plan ${currentSubscription === 'free' ? 'active' : ''}`}>
+          <div className="plan-header">
+            <div className="plan-name">Free</div>
+            <div className="plan-price">$0</div>
+            <div className="plan-period">Forever</div>
+          </div>
+          <div className="plan-features">
+            <ul>
+              <li>Basic music streaming</li>
+              <li>Limited skips per hour</li>
+              <li>Ads between songs</li>
+              <li>Standard audio quality</li>
+              <li>Online playback only</li>
+            </ul>
+          </div>
+          {currentSubscription === 'free' ? (
+            <button className="plan-button active-plan" disabled>Active</button>
+          ) : (
+            <button className="plan-button" onClick={() => {
+  setShowPremiumModal(false);
+  setShowDowngradeModal(true);
+}}>
+  Downgrade to Free
+</button>
+          )}
+        </div>
+
+        {/* PREMIUM PLAN */}
+        <div className={`premium-plan ${currentSubscription === 'premium' ? 'active' : ''}`}>
+          <div className="plan-header">
+            <div className="plan-name">Premium</div>
+            <div className="plan-price">0.001 ETH</div>
+            <div className="plan-period">per month</div>
+          </div>
+          <div className="plan-features">
+            <ul>
+              <li>Ad-free music listening</li>
+              <li>Unlimited skips</li>
+              <li>High quality audio (320kbps)</li>
+              <li>Offline playback</li>
+              <li>Download up to 1,000 songs</li>
+              <li>Play any song, anytime</li>
+            </ul>
+          </div>
+          {currentSubscription === 'premium' ? (
+            <button className="plan-button active-plan" disabled>Active</button>
+          ) : (
+            <button className="plan-button" onClick={() => handlePurchaseSubscription('premium')}>
+              Get Premium
+            </button>
+          )}
+        </div>
+
+        {/* PREMIUM PLUS PLAN */}
+        <div className={`premium-plan ${currentSubscription === 'premiumPlus' ? 'active' : ''}`}>
+          <div className="plan-header">
+            <div className="plan-name">Premium Plus</div>
+            <div className="plan-price">0.002 ETH</div>
+            <div className="plan-period">per month</div>
+          </div>
+          <div className="plan-features">
+            <ul>
+              <li>Everything in Premium</li>
+              <li>Ultra HD audio quality (FLAC)</li>
+              <li>Download unlimited songs</li>
+              <li>Early access to new features</li>
+              <li>Exclusive premium content</li>
+              <li>Priority customer support</li>
+              <li>Multi-device streaming (5 devices)</li>
+              <li>Custom playlists recommendations</li>
+            </ul>
+          </div>
+          {currentSubscription === 'premiumPlus' ? (
+            <button className="plan-button active-plan" disabled>Active</button>
+          ) : (
+            <button className="plan-button" onClick={() => handlePurchaseSubscription('premiumPlus')}>
+              Get Premium Plus
+            </button>
+          )}
+        </div>
+      </div>
+      <button className="close-premium-btn" onClick={() => setShowPremiumModal(false)}>
+        Close
+      </button>
+    </div>
+  </div>
+)}
+{showSuccessModal && (
+  <div className="success-modal-overlay" onClick={() => setShowSuccessModal(false)}>
+    <div className="success-modal" onClick={(e) => e.stopPropagation()}>
+      <div className="success-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+      <h3>Subscription Activated!</h3>
+      <p>Your premium subscription has been successfully activated. Enjoy unlimited music!</p>
+      
+      {successTxHash && (
+        <div className="transaction-hash">
+          <p>Transaction Hash:</p>
+          <a 
+            href={`https://sepolia.etherscan.io/tx/${successTxHash}`} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="hash-link"
+          >
+            {successTxHash}
+          </a>
+        </div>
+      )}
+      
+      <div className="success-modal-buttons">
+        <button 
+          className="btn-success-primary" 
+          onClick={() => setShowSuccessModal(false)}
+        >
+          Start Listening
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{showDowngradeModal && (
+  <div className="modal-overlay">
+    <div className="downgrade-modal">
+      <h3>Downgrade to Free Plan?</h3>
+      <p>Are you sure you want to downgrade to the Free plan? You will lose access to premium features.</p>
+      
+      <div className="downgrade-features">
+        <p>You will lose:</p>
+        <ul>
+          <li>Ad-free music listening</li>
+          <li>Unlimited skips</li>
+          <li>High quality audio</li>
+          <li>Offline playback</li>
+          <li>Download songs</li>
+        </ul>
+      </div>
+      
+      <div className="downgrade-buttons">
+        <button 
+          onClick={() => setShowDowngradeModal(false)} 
+          className="btn-downgrade-cancel"
+        >
+          Cancel
+        </button>
+        <button 
+          onClick={() => {
+            setCurrentSubscription('free');
+            setShowDowngradeModal(false);
+          }} 
+          className="btn-downgrade-confirm"
+        >
+          Confirm Downgrade
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };
