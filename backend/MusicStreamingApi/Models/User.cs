@@ -12,5 +12,12 @@ public class User
     public string Email { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
     public DateTime RegisteredAt { get; set; }
+    public UserSettings? Settings { get; set; }
+}
+
+public class UserSettings
+{
+    public bool AutoPlay { get; set; } = true;
+    public int SleepTimer { get; set; }
 }
 
