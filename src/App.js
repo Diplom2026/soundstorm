@@ -1377,7 +1377,7 @@ TrackRow.displayName = 'TrackRow';
             {currentView.startsWith('playlist-') && (
   <div>
     {(() => {
-      const playlistId = parseInt(currentView.replace('playlist-', ''));
+      const playlistId = currentView.replace('playlist-', '');
       const playlist = playlists.find(p => p.id === playlistId);
       if (!playlist) return null;
       
