@@ -42,7 +42,12 @@ builder.Services.AddCors(options =>
         policy.SetIsOriginAllowed(origin =>
               {
                   if (string.IsNullOrEmpty(origin)) return false;
-                  try { return new Uri(origin).Host.Equals("localhost", StringComparison.OrdinalIgnoreCase); }
+                  try
+                  {
+                      var host = new Uri(origin).Host;
+                      return host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+                          || host.Equals("soundstorm.pp.ua", StringComparison.OrdinalIgnoreCase);
+                  }
                   catch { return false; }
               })
               .AllowAnyHeader()
