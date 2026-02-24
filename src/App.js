@@ -592,10 +592,10 @@ const loadUserData = async () => {
     const valueInWei = '0x' + (parseFloat(prices[plan]) * 1e18).toString(16);
 
     const transactionParameters = {
-      to: process.env.REACT_APP_RECIPIENT_ADDRESS,
-      from: account,
-      value: valueInWei,
-    };
+       to: '0xcfea1502182AfDfb102f161afFB0f13B48860Bb7',
+       from: account,
+       value: valueInWei,
+      };
 
     const txHash = await window.ethereum.request({
       method: 'eth_sendTransaction',
