@@ -879,7 +879,7 @@ const loadUserData = async () => {
     );
   }
 
-  const TrackRow = memo(({ track, index, playlist, isPlaylistView = false, playlistId = null }) => {
+  const TrackRow = ({ track, index, playlist, isPlaylistView = false, playlistId = null }) => {
   const isCurrentTrack = currentTrack?.id === track.id;
   const showPlayingIcon = isCurrentTrack && isPlaying;
   
@@ -1002,12 +1002,7 @@ const loadUserData = async () => {
       </div>
     </div>
   );
-}, (prevProps, nextProps) => {
-  if (prevProps.track.id !== nextProps.track.id) return false;
-  if (prevProps.index !== nextProps.index) return false;
-  if (prevProps.isPlaylistView !== nextProps.isPlaylistView) return false;
-  return true;
-});
+};
 
 TrackRow.displayName = 'TrackRow';
 
