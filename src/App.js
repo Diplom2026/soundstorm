@@ -375,6 +375,10 @@ const initializeCollections = () => {
 
 const loadUserData = async () => {
   try {
+    // Загрузить профиль
+    const profile = await api.getUserProfile();
+    setCurrentUser(profile);
+    
     // Загрузить избранное
     const favoritesData = await api.getFavorites();
     setFavorites(favoritesData);
