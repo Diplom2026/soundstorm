@@ -62,7 +62,7 @@ jobs:
           echo "ZAP scan completed successfully." > zap_report.txt
 
       - name: Upload ZAP scan report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: zap_scan_report
           path: zap_report.txt
@@ -78,7 +78,7 @@ jobs:
           echo "Monitoring completed successfully." > monitoring_report.txt
 
       - name: Upload monitoring report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: monitoring_report
           path: monitoring_report.txt
