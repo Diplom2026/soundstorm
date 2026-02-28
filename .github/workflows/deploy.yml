@@ -1,0 +1,89 @@
+name: CI/CD Deployment
+
+on:
+  push:
+    branches:
+      - pipeline-setup
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Read version tag
+        id: version
+        run: echo "TAG=$(tr -d '\n\r ' < VERSION)" >> $GITHUB_ENV
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Build backend
+      - name: Build backend image
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/soundstorm-backend:${TAG} ./backend/MusicStreamingApi
+
+      - name: Push backend image
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/soundstorm-backend:${TAG}
+
+      # Build frontend
+      - name: Build frontend image
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/soundstorm-frontend:${TAG} ./frontend
+
+      - name: Push frontend image
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/soundstorm-frontend:${TAG}
+
+      # Build nginx reverse proxy
+      - name: Build nginx image
+        run: |
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/soundstorm-nginx:${TAG} ./nginx
+
+      - name: Push nginx image
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/soundstorm-nginx:${TAG}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/soundstorm
+            git pull
+            docker-compose pull
+            docker-compose up -d
+
+  zap_scan:
+    runs-on: ubuntu-latest
+    needs: deploy
+
+    steps:
+      - name: ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.7.0
+        with:
+          target: "https://soundstorm.pp.ua"
+
+  monitoring:
+    runs-on: ubuntu-latest
+    needs: zap_scan
+
+    steps:
+      - name: Simple uptime check
+        run: |
+          STATUS=$(curl -o /dev/null -s -w "%{http_code}" https://soundstorm.pp.ua)
+          if [ "$STATUS" != "200" ]; then
+            echo "Site is down!"
+            exit 1
+          fi
+          echo "Site is up!"
