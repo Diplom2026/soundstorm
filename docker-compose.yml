@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+  backend:
+    image: xxvladxx/soundstorm-backend:${TAG}
+    container_name: soundstorm-backend
+    restart: always
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Production"
+      Mongo__ConnectionString: "mongodb://mongo:27017"
+    expose:
+      - "3000"
+    depends_on:
+      - mongo
+
+  frontend:
+    image: xxvladxx/soundstorm-frontend:${TAG}
+    container_name: soundstorm-frontend
+    restart: always
+    expose:
+      - "80"
+
+  mongo:
+    image: mongo:7
+    container_name: soundstorm-mongo
+    restart: always
+    volumes:
+      - mongo_data:/data/db
+
+  nginx:
+    image: xxvladxx/soundstorm-nginx:${TAG}
+    container_name: soundstorm-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt/live/soundstorm.pp.ua/fullchain.pem:/certs/fullchain.pem:ro
+      - /etc/letsencrypt/live/soundstorm.pp.ua/privkey.pem:/certs/privkey.pem:ro
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  mongo_data:

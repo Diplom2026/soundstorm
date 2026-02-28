@@ -11,8 +11,8 @@ builder.Services.AddControllers()
         opts.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase);
 
 // Swagger / OpenAPI for .NET 8
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+//builder.Services.AddEndpointsApiExplorer();
+//builder.Services.AddSwaggerGen();
 
 // JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -92,11 +92,11 @@ app.UseExceptionHandler(exceptionHandlerApp =>
 app.UseCors("AllowReactApp");
 
 // Swagger only in Development
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+//if (app.Environment.IsDevelopment())
+//{
+//   app.UseSwagger();
+//   app.UseSwaggerUI();
+//}
 
 // HTTPS redirection only in Production
 if (!app.Environment.IsDevelopment())
