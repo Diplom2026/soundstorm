@@ -46,7 +46,7 @@ jobs:
   # ----------------------------------------------------
   # JOB 2: ZAP BASELINE SCAN (informational only)
   # ----------------------------------------------------
-  zap_scan:
+  zapscan:
     runs-on: ubuntu-latest
     needs: build
 
@@ -75,7 +75,7 @@ jobs:
   # ----------------------------------------------------
   deploy:
     runs-on: ubuntu-latest
-    needs: zap_scan
+    needs: zapscan
 
     steps:
       - name: Checkout code
